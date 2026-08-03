@@ -36,6 +36,8 @@
             }
         }
     </script>
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
@@ -106,6 +108,50 @@
 </head>
 <body class="h-screen flex flex-col overflow-hidden text-slate-200 select-none">
 
+    <!-- ================= AUTH / LOGIN SCREEN ================= -->
+    <div id="authScreen" class="flex-1 flex items-center justify-center bg-slate-950 p-4">
+        <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-tr from-emerald-600 to-green-400 p-2.5 rounded-xl shadow-lg shadow-emerald-950/50 flex items-center justify-center">
+                    <i class="fa-solid fa-tree text-slate-950 text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight text-white flex items-center gap-2">
+                        GardenScape <span class="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">Pro 2.0</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Sign in to sync your yard map</p>
+                </div>
+            </div>
+
+            <div id="authChecking" class="py-6 text-center text-sm text-slate-400">
+                <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Checking session...
+            </div>
+
+            <form id="authForm" class="hidden space-y-3" onsubmit="handleLoginSubmit(event)">
+                <div>
+                    <label class="text-[11px] font-medium text-slate-400 block mb-1">Email</label>
+                    <input type="email" id="authEmailInput" required autocomplete="email" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="you@example.com">
+                </div>
+                <div>
+                    <label class="text-[11px] font-medium text-slate-400 block mb-1">Password</label>
+                    <input type="password" id="authPasswordInput" required autocomplete="current-password" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="••••••••">
+                </div>
+
+                <div id="authMessage" class="hidden"></div>
+
+                <button type="submit" id="authSubmitBtn" class="w-full px-4 py-2.5 text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-slate-950 rounded-xl shadow transition disabled:opacity-60">
+                    Sign In
+                </button>
+                <button type="button" id="authSignupBtn" onclick="handleSignupSubmit()" class="w-full px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded-xl transition disabled:opacity-60">
+                    New here? Create an account
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MAIN APP (hidden until signed in) ================= -->
+    <div id="appRoot" class="hidden flex-1 flex flex-col overflow-hidden w-full h-full">
+
     <!-- Top Navigation Header -->
     <header class="bg-slate-950 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-4 z-20">
         <div class="flex items-center space-x-3">
@@ -132,6 +178,22 @@
 
         <!-- View Switcher & Action Buttons -->
         <div class="flex items-center gap-2">
+            <span id="syncStatusLabel" class="text-[11px] text-emerald-400 flex items-center gap-1.5 whitespace-nowrap">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Synced
+            </span>
+
+            <div class="h-6 w-px bg-slate-800 mx-1"></div>
+
+            <div class="flex items-center gap-2 text-xs text-slate-400 whitespace-nowrap">
+                <i class="fa-solid fa-circle-user text-slate-500"></i>
+                <span id="userEmailLabel" class="max-w-[140px] truncate"></span>
+                <button onclick="handleSignOut()" title="Sign Out" class="p-1.5 text-slate-400 hover:text-white bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg transition">
+                    <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                </button>
+            </div>
+
+            <div class="h-6 w-px bg-slate-800 mx-1"></div>
+
             <div class="bg-slate-900 border border-slate-800 p-1 rounded-xl flex">
                 <button id="viewMapBtn" onclick="switchView('map')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white shadow transition flex items-center gap-1.5">
                     <i class="fa-solid fa-map"></i> Layout Map
@@ -457,7 +519,7 @@
                             </div>
                         </div>
 
-                        <!-- Dimensions & Resizing Controls (Feature 1) -->
+                        <!-- Dimensions & Resizing Controls -->
                         <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
                             <div class="text-xs font-semibold text-slate-300 border-b border-slate-800 pb-1.5 flex items-center justify-between">
                                 <span><i class="fa-solid fa-up-right-and-down-left-from-center text-blue-400 mr-1.5"></i> Dimensions & Sizing</span>
@@ -476,7 +538,7 @@
                             </div>
                         </div>
 
-                        <!-- Micro-Zone Sun Exposure Settings (Feature 2) -->
+                        <!-- Micro-Zone Sun Exposure Settings -->
                         <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
                             <div class="text-xs font-semibold text-slate-300 border-b border-slate-800 pb-1.5 flex items-center justify-between">
                                 <span><i class="fa-solid fa-sun text-amber-400 mr-1.5"></i> Micro-Zone Sun Exposure</span>
@@ -488,7 +550,7 @@
                                 <select id="inspMicroSunSelect" onchange="updateSelectedPlantFromInput()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-amber-400 font-semibold focus:outline-none focus:border-amber-500">
                                     <option value="Full Sun">☀️ Full Sun (6+ hrs direct)</option>
                                     <option value="Partial Shade">⛅ Partial Shade (3-6 hrs light)</option>
-                                    <option value="Full Shade">☁️ Full Shade (<3 hrs light)</option>
+                                    <option value="Full Shade">☁️ Full Shade (&lt;3 hrs light)</option>
                                     <option value="Deep Shade">🌑 Deep Shade (Fence/Wall shadow)</option>
                                 </select>
                             </div>
@@ -685,7 +747,7 @@
                     <select id="newZoneSunSelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-amber-400 focus:outline-none">
                         <option value="Full Sun">☀️ Full Sun (6+ Hours)</option>
                         <option value="Partial Shade">⛅ Partial Shade (3-6 Hours)</option>
-                        <option value="Full Shade">☁️ Full Shade (<3 Hours)</option>
+                        <option value="Full Shade">☁️ Full Shade (&lt;3 Hours)</option>
                     </select>
                 </div>
             </div>
@@ -697,13 +759,23 @@
         </div>
     </div>
 
+    </div> <!-- /#appRoot -->
+
     <script>
         /**
          * GardenScape App State and Storage Logic
          */
-        const STORAGE_KEY = 'gardenscape_app_data_v2';
+        const SUPABASE_URL = 'https://djyswybfnukmkqmcjrfw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqeXN3eWJmbnVrbWtxbWNqcmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3MTY3MTcsImV4cCI6MjEwMTI5MjcxN30.DZaYzqPvpgi5RHkfHXHGmGhWATxPHDP5qSpWJPry1QE';
+        // Renamed to `sb` (not `supabase`) so it doesn't collide with the
+        // `window.supabase` global that the CDN script above provides.
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const DB_TABLE = 'gardenscape_states';
 
-        // Initial state with feature extensions (compass direction, solar time, micro-exposure, element dimensions)
+        let currentUser = null;      // Supabase auth user object once signed in
+        let appInitialized = false;  // guards against re-running setup on repeated auth events
+        let saveDebounceTimer = null;
+
         let appState = {
             activeZoneId: 'zone-front',
             northAngle: 0, // 0 = Top, 90 = Right, 180 = Bottom, 270 = Left
@@ -722,14 +794,14 @@
                     botanicalName: 'Acer palmatum',
                     category: 'tree',
                     sunNeeds: 'Partial Shade',
-                    microSun: 'Partial Shade', // Feature 2: Variable sun exposure per item
+                    microSun: 'Partial Shade',
                     waterNeeds: 'Moderate',
                     imageUrl: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60',
                     plantedDate: '2023-04-12',
                     x: 220,
                     y: 220,
-                    width: 140,  // Feature 1: Explicit Width
-                    height: 140, // Feature 1: Explicit Height
+                    width: 140,
+                    height: 140,
                     color: '#15803d',
                     notes: [
                         { id: 'n1', date: '2024-05-10', text: 'Pruned dead branches after winter frost.' }
@@ -791,34 +863,214 @@
         // Interaction State Variables
         let isDragging = false;
         let isResizing = false;
-        let activeHandle = null; // 'nw', 'ne', 'se', 'sw', 'r'
+        let activeHandle = null;
         let dragTarget = null;
         let dragStartPos = { x: 0, y: 0 };
         let initialDimensions = { x: 0, y: 0, width: 0, height: 0 };
 
         // Initialize App
         window.onload = function() {
-            loadSavedState();
+            initAuth();
+        };
+
+        /**
+         * Authentication
+         */
+        async function initAuth() {
+            // Fires on sign-in, sign-out, token refresh, and once on page load
+            // with the initial session (if any).
+            sb.auth.onAuthStateChange((event, session) => {
+                if (session && session.user) {
+                    handleSignedIn(session.user);
+                } else if (event === 'SIGNED_OUT') {
+                    handleSignedOut();
+                }
+            });
+
+            const { data: { session } } = await sb.auth.getSession();
+
+            document.getElementById('authChecking').classList.add('hidden');
+
+            if (session && session.user) {
+                handleSignedIn(session.user);
+            } else {
+                document.getElementById('authForm').classList.remove('hidden');
+            }
+        }
+
+        async function handleSignedIn(user) {
+            currentUser = user;
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('appRoot').classList.remove('hidden');
+            document.getElementById('userEmailLabel').innerText = user.email;
+
+            // onAuthStateChange can fire more than once (e.g. INITIAL_SESSION
+            // then a token refresh) - only run app setup a single time.
+            if (appInitialized) return;
+            appInitialized = true;
+
+            setSyncStatus('saving');
+            await loadSavedState();
             renderZoneTabs();
             renderPresetSidebar();
             renderMapCanvas();
             renderSunTrackerView();
             setupSVGCanvasEvents();
             updateCompassAndSolarUI();
-        };
-
-        function saveState() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
         }
 
-        function loadSavedState() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try {
-                    appState = { ...appState, ...JSON.parse(saved) };
-                } catch(e) {
-                    console.error("Failed to parse saved state", e);
+        function handleSignedOut() {
+            currentUser = null;
+            document.getElementById('appRoot').classList.add('hidden');
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('authChecking').classList.add('hidden');
+            document.getElementById('authForm').classList.remove('hidden');
+        }
+
+        async function handleLoginSubmit(event) {
+            event.preventDefault();
+            const email = document.getElementById('authEmailInput').value.trim();
+            const password = document.getElementById('authPasswordInput').value;
+            setAuthMessage('');
+            setAuthLoading(true);
+
+            const { error } = await sb.auth.signInWithPassword({ email, password });
+
+            setAuthLoading(false);
+            if (error) {
+                setAuthMessage(error.message, 'error');
+            }
+            // On success, the onAuthStateChange listener above takes it from here.
+        }
+
+        async function handleSignupSubmit() {
+            const email = document.getElementById('authEmailInput').value.trim();
+            const password = document.getElementById('authPasswordInput').value;
+            setAuthMessage('');
+
+            if (!email || !password) {
+                setAuthMessage('Enter an email and password first.', 'error');
+                return;
+            }
+            if (password.length < 6) {
+                setAuthMessage('Password must be at least 6 characters.', 'error');
+                return;
+            }
+
+            setAuthLoading(true);
+            const { data, error } = await sb.auth.signUp({ email, password });
+            setAuthLoading(false);
+
+            if (error) {
+                setAuthMessage(error.message, 'error');
+                return;
+            }
+
+            if (!data.session) {
+                // Email confirmation is required before this account can sign in.
+                setAuthMessage('Account created! Check your email to confirm, then sign in.', 'success');
+            }
+            // If data.session exists, confirmation is off and onAuthStateChange
+            // will sign the user straight into the app.
+        }
+
+        async function handleSignOut() {
+            await sb.auth.signOut();
+            // Full reload keeps things simple and guarantees a clean slate -
+            // no leftover drag state, duplicate canvas listeners, etc.
+            location.reload();
+        }
+
+        function setAuthMessage(msg, type) {
+            const el = document.getElementById('authMessage');
+            if (!msg) {
+                el.classList.add('hidden');
+                el.innerText = '';
+                return;
+            }
+            el.innerText = msg;
+            el.classList.remove('hidden');
+            el.className = type === 'success'
+                ? 'text-xs px-3 py-2 rounded-lg bg-emerald-950/60 border border-emerald-800 text-emerald-400'
+                : 'text-xs px-3 py-2 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-400';
+        }
+
+        function setAuthLoading(loading) {
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const signupBtn = document.getElementById('authSignupBtn');
+            submitBtn.disabled = loading;
+            signupBtn.disabled = loading;
+            submitBtn.innerText = loading ? 'Please wait...' : 'Sign In';
+        }
+
+        /**
+         * Cloud Sync (Supabase) - replaces the old localStorage read/write.
+         * The entire appState blob is stored as one JSONB row per user,
+         * keyed by their auth user id.
+         */
+        function saveState() {
+            setSyncStatus('saving');
+            clearTimeout(saveDebounceTimer);
+            // Debounce so rapid-fire edits (typing, dragging) collapse into
+            // one network write instead of one per keystroke/step.
+            saveDebounceTimer = setTimeout(syncStateToSupabase, 600);
+        }
+
+        async function syncStateToSupabase() {
+            if (!currentUser) return;
+            try {
+                const { error } = await sb
+                    .from(DB_TABLE)
+                    .upsert({
+                        user_id: currentUser.id,
+                        state: appState,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+
+                if (error) throw error;
+                setSyncStatus('saved');
+            } catch (err) {
+                console.error('Failed to save state to Supabase', err);
+                setSyncStatus('error');
+            }
+        }
+
+        async function loadSavedState() {
+            try {
+                const { data, error } = await sb
+                    .from(DB_TABLE)
+                    .select('state')
+                    .eq('user_id', currentUser.id)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (data && data.state) {
+                    appState = { ...appState, ...data.state };
                 }
+                // If no row exists yet, this is a brand new account - the
+                // default sample appState stays in memory and will be
+                // written to Supabase automatically the first time the
+                // user makes any edit (same as the old localStorage behavior).
+                setSyncStatus('saved');
+            } catch (err) {
+                console.error('Failed to load state from Supabase', err);
+                setSyncStatus('error');
+            }
+        }
+
+        function setSyncStatus(status) {
+            const el = document.getElementById('syncStatusLabel');
+            if (!el) return;
+            if (status === 'saving') {
+                el.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Syncing...';
+                el.className = 'text-[11px] text-amber-400 flex items-center gap-1.5 whitespace-nowrap';
+            } else if (status === 'saved') {
+                el.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Synced';
+                el.className = 'text-[11px] text-emerald-400 flex items-center gap-1.5 whitespace-nowrap';
+            } else if (status === 'error') {
+                el.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Sync error';
+                el.className = 'text-[11px] text-rose-400 flex items-center gap-1.5 whitespace-nowrap';
             }
         }
 
@@ -938,8 +1190,7 @@
         }
 
         /**
-         * STREAMING_CHUNK:Adding solar position math and compass rotation handler...
-         * Feature 3: Compass North Angle & Dynamic Solar Shadow Calculations
+         * Compass North Angle & Dynamic Solar Shadow Calculations
          */
         function updateNorthDirection(angleDeg) {
             appState.northAngle = parseInt(angleDeg);
@@ -951,7 +1202,6 @@
         function updateSolarTime(hoursValue) {
             appState.solarTime = parseFloat(hoursValue);
 
-            // Format hours string (e.g., 13.5 -> "1:30 PM")
             const hours = Math.floor(appState.solarTime);
             const minutes = (appState.solarTime % 1) === 0 ? '00' : '30';
             const period = hours >= 12 ? 'PM' : 'AM';
@@ -969,7 +1219,6 @@
         }
 
         function updateCompassAndSolarUI() {
-            // Update Compass Dial UI rotation
             const compassDial = document.getElementById('compassDial');
             if (compassDial) {
                 compassDial.style.transform = `rotate(${appState.northAngle}deg)`;
@@ -982,14 +1231,8 @@
             const textEl = document.getElementById('compassDirectionText');
             if (textEl) textEl.innerText = dirMap[appState.northAngle] || 'North ↑';
 
-            // Calculate Solar Azimuth (Sun position relative to North: East at 6am = 90deg, South at 12pm = 180deg, West at 6pm = 270deg)
-            const solarProgress = (appState.solarTime - 6) / 12; // 0.0 to 1.0
-            const solarAzimuth = 90 + (solarProgress * 180); // 90° (E) to 270° (W)
-
-            // Effective Sun Angle on SVG map canvas considering North offset
-            const effectiveSunAngle = (solarAzimuth + appState.northAngle) % 360;
-
-            // Solar altitude (sun height above horizon, max at noon = 70deg)
+            const solarProgress = (appState.solarTime - 6) / 12;
+            const solarAzimuth = 90 + (solarProgress * 180);
             const solarElevation = Math.sin(solarProgress * Math.PI) * 70;
 
             const sunAngleText = document.getElementById('solarSunAngleText');
@@ -1024,13 +1267,11 @@
                 emptyNotice.classList.add('hidden');
             }
 
-            // Calculate Shadow Direction Vectors based on Solar Time & North Direction Angle
-            const solarProgress = (appState.solarTime - 6) / 12; // 0 to 1
-            const solarAzimuth = 90 + (solarProgress * 180); // 90deg (East) to 270deg (West)
+            const solarProgress = (appState.solarTime - 6) / 12;
+            const solarAzimuth = 90 + (solarProgress * 180);
             const effectiveSunAngleRad = ((solarAzimuth + appState.northAngle) * Math.PI) / 180;
             const solarElevation = Math.max(10, Math.sin(solarProgress * Math.PI) * 70);
             
-            // Shadow projects in OPPOSITE direction of Sun light
             const shadowLengthMultiplier = Math.min(2.5, Math.max(0.3, 1 / Math.tan((solarElevation * Math.PI) / 180)));
             const shadowDx = -Math.sin(effectiveSunAngleRad) * 40 * shadowLengthMultiplier;
             const shadowDy = Math.cos(effectiveSunAngleRad) * 40 * shadowLengthMultiplier;
@@ -1061,7 +1302,7 @@
                 const cx = plant.x + width / 2;
                 const cy = plant.y + height / 2;
 
-                // 1. Dynamic Cast Shadows (Feature 3)
+                // 1. Dynamic Cast Shadows
                 if (appState.showShadows) {
                     const shadowG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     shadowG.setAttribute('fill', 'rgba(15, 23, 42, 0.45)');
@@ -1076,7 +1317,6 @@
                     const sdy = shadowDy * shadowHeightMultiplier;
 
                     if (plant.category === 'planter' || plant.category === 'patio' || plant.category === 'structure') {
-                        // Polygon Shadow projection for rectangular structures
                         const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
                         const p1 = `${plant.x},${plant.y}`;
                         const p2 = `${plant.x + width},${plant.y}`;
@@ -1085,7 +1325,6 @@
                         polygon.setAttribute('points', `${p1} ${p2} ${p3} ${p4}`);
                         shadowG.appendChild(polygon);
                     } else {
-                        // Elliptical cast shadow for trees/plants
                         const shadowEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
                         shadowEllipse.setAttribute('cx', cx + sdx);
                         shadowEllipse.setAttribute('cy', cy + sdy);
@@ -1104,7 +1343,6 @@
                 const microSun = plant.microSun || plant.sunNeeds || 'Full Sun';
 
                 if (plant.category === 'planter' || plant.category === 'patio' || plant.category === 'structure') {
-                    // Rectangular Resizable Shape
                     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     rect.setAttribute('x', plant.x);
                     rect.setAttribute('y', plant.y);
@@ -1117,7 +1355,6 @@
                     rect.setAttribute('filter', 'url(#shadow)');
                     g.appendChild(rect);
                 } else {
-                    // Elliptical / Circular Resizable Canopy Shape
                     const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
                     ellipse.setAttribute('cx', cx);
                     ellipse.setAttribute('cy', cy);
@@ -1130,7 +1367,7 @@
                     ellipse.setAttribute('filter', 'url(#shadow)');
                     g.appendChild(ellipse);
 
-                    // Category Icon
+                    // Category Icon (Using Font Awesome 6 Free family name)
                     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     icon.setAttribute('x', cx);
                     icon.setAttribute('y', cy);
@@ -1138,7 +1375,8 @@
                     icon.setAttribute('dominant-baseline', 'central');
                     icon.setAttribute('fill', '#ffffff');
                     icon.setAttribute('font-size', Math.min(width, height) * 0.4 + 'px');
-                    icon.setAttribute('font-family', 'FontAwesome');
+                    icon.setAttribute('font-family', 'Font Awesome 6 Free');
+                    icon.setAttribute('font-weight', '900');
                     
                     let iconChar = '\uf1bb'; // tree
                     if (plant.category === 'shrub') iconChar = '\uf801';
@@ -1149,7 +1387,7 @@
                     g.appendChild(icon);
                 }
 
-                // Feature 2: Micro-Sun Exposure Visual Badge Indicator
+                // Micro-Sun Exposure Visual Badge Indicator
                 const sunBadgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 const badgeX = plant.x + width - 10;
                 const badgeY = plant.y + 10;
@@ -1159,7 +1397,7 @@
                 badgeCircle.setAttribute('cy', badgeY);
                 badgeCircle.setAttribute('r', '9');
                 
-                let badgeColor = '#f59e0b'; // Full sun
+                let badgeColor = '#f59e0b';
                 if (microSun === 'Partial Shade') badgeColor = '#84cc16';
                 if (microSun === 'Full Shade') badgeColor = '#6366f1';
                 if (microSun === 'Deep Shade') badgeColor = '#1e293b';
@@ -1176,7 +1414,8 @@
                 badgeText.setAttribute('dominant-baseline', 'central');
                 badgeText.setAttribute('fill', '#ffffff');
                 badgeText.setAttribute('font-size', '8px');
-                badgeText.setAttribute('font-family', 'FontAwesome');
+                badgeText.setAttribute('font-family', 'Font Awesome 6 Free');
+                badgeText.setAttribute('font-weight', '900');
                 badgeText.textContent = microSun === 'Full Sun' ? '\uf185' : (microSun === 'Partial Shade' ? '\uf6c4' : '\uf0c2');
                 sunBadgeG.appendChild(badgeText);
 
@@ -1198,11 +1437,10 @@
 
                 svgGroup.appendChild(g);
 
-                // 3. Feature 1: Selection Bounding Box & Interactive Corner Resize Handles
+                // 3. Selection Bounding Box & Interactive Corner Resize Handles
                 if (isSelected) {
                     const selG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-                    // Blue Bounding Box Outline
                     const bbox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     bbox.setAttribute('x', plant.x - 4);
                     bbox.setAttribute('y', plant.y - 4);
@@ -1214,7 +1452,6 @@
                     bbox.setAttribute('stroke-dasharray', '4 4');
                     selG.appendChild(bbox);
 
-                    // 4 Corner Interactive Resize Handle Buttons
                     const handlePositions = [
                         { type: 'nw', x: plant.x - 4, y: plant.y - 4 },
                         { type: 'ne', x: plant.x + width + 4, y: plant.y - 4 },
@@ -1239,7 +1476,7 @@
         }
 
         /**
-         * SVG Drag & Click-to-Resize Event Listeners (Feature 1 Implementation)
+         * SVG Drag & Click-to-Resize Event Listeners
          */
         function setupSVGCanvasEvents() {
             const svg = document.getElementById('gardenSVG');
@@ -1250,20 +1487,25 @@
 
             // Touch events support for mobile devices
             svg.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 1) handlePointerDown(e.touches[0]);
-            });
+                if (e.touches.length === 1) handlePointerDown(e);
+            }, { passive: false });
             svg.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 1 && (isDragging || isResizing)) handlePointerMove(e.touches[0]);
-            });
+                if (e.touches.length === 1 && (isDragging || isResizing)) {
+                    e.preventDefault();
+                    handlePointerMove(e);
+                }
+            }, { passive: false });
             window.addEventListener('touchend', handlePointerUp);
         }
 
         function handlePointerDown(e) {
-            const targetHandle = e.target.closest('.resize-handle');
-            const targetElement = e.target.closest('.plant-element');
+            const target = e.target || (e.touches && e.touches[0] ? e.touches[0].target : null);
+            if (!target) return;
+
+            const targetHandle = target.closest ? target.closest('.resize-handle') : null;
+            const targetElement = target.closest ? target.closest('.plant-element') : null;
 
             if (targetHandle) {
-                // Clicked a corner resize handle!
                 isResizing = true;
                 activeHandle = targetHandle.getAttribute('data-handle');
                 const plantId = targetHandle.getAttribute('data-id');
@@ -1277,9 +1519,8 @@
                     width: dragTarget.width || dragTarget.size || 100,
                     height: dragTarget.height || dragTarget.size || 100
                 };
-                e.stopPropagation();
+                if (e.stopPropagation) e.stopPropagation();
             } else if (targetElement) {
-                // Clicked an element to move or select
                 const plantId = targetElement.getAttribute('data-id');
                 selectPlant(plantId);
 
@@ -1292,7 +1533,6 @@
                     y: pt.y - dragTarget.y
                 };
             } else {
-                // Clicked canvas background -> Clear selection
                 selectPlant(null);
             }
         }
@@ -1303,7 +1543,6 @@
             const pt = getSVGCoordinates(e);
 
             if (isResizing) {
-                // Scaling / Expanding boundaries (Feature 1)
                 const dx = pt.x - dragStartPos.x;
                 const dy = pt.y - dragStartPos.y;
 
@@ -1339,7 +1578,6 @@
                 renderMapCanvas();
                 renderInspectorValues();
             } else if (isDragging) {
-                // Position Dragging
                 dragTarget.x = Math.max(20, Math.min(940, pt.x - dragStartPos.x));
                 dragTarget.y = Math.max(20, Math.min(740, pt.y - dragStartPos.y));
                 renderMapCanvas();
@@ -1359,8 +1597,10 @@
         function getSVGCoordinates(e) {
             const svg = document.getElementById('gardenSVG');
             const pt = svg.createSVGPoint();
-            pt.x = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-            pt.y = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            pt.x = clientX;
+            pt.y = clientY;
             return pt.matrixTransform(svg.getScreenCTM().inverse());
         }
 
@@ -1670,6 +1910,9 @@
             document.getElementById('sunRatingText').innerText = rating;
             document.getElementById('sunBestPlantsText').innerText = bestPlants;
             document.getElementById('zoneNotesTextarea').value = zone.note || '';
+            
+            const orientationSelect = document.getElementById('zoneOrientationSelect');
+            if (orientationSelect) orientationSelect.value = zone.orientation || 'North Top';
 
             saveState();
             renderZoneTabs();
