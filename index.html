@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dylan's GardenScape Pro</title>
+    <title>GardenScape Pro - Yard & Micro-Sun Mapper</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -117,7 +117,7 @@
                 </div>
                 <div>
                     <h1 class="font-bold text-lg leading-tight text-white flex items-center gap-2">
-                        Dylan's GardenScape <span class="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">Pro 2.0</span>
+                        GardenScape <span class="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">Pro 2.0</span>
                     </h1>
                     <p class="text-xs text-slate-400">Sign in to sync your yard map</p>
                 </div>
@@ -160,7 +160,7 @@
             </div>
             <div>
                 <h1 class="font-bold text-lg leading-tight text-white flex items-center gap-2">
-                    Dylan's GardenScape <span class="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">Pro 2.0</span>
+                    GardenScape <span class="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">Pro 2.0</span>
                 </h1>
                 <p class="text-xs text-slate-400">Yard Mapper, Variable Sun Exposure & Shadows</p>
             </div>
@@ -516,6 +516,19 @@
                                         <option value="structure">House / Wall Structure</option>
                                     </select>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Auto Plant Info Lookup -->
+                        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2">
+                            <div class="text-xs font-semibold text-slate-300 border-b border-slate-800 pb-1.5 flex items-center justify-between">
+                                <span><i class="fa-solid fa-magnifying-glass text-purple-400 mr-1.5"></i> Plant Info Lookup</span>
+                                <button onclick="lookupPlantInfo(true)" title="Search again" class="text-[10px] text-slate-500 hover:text-emerald-400 transition px-1.5 py-0.5 rounded">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                                </button>
+                            </div>
+                            <div id="plantInfoContent" class="text-xs text-slate-400 leading-relaxed">
+                                <p class="text-slate-500 italic">Type a plant name above to auto-search.</p>
                             </div>
                         </div>
 
@@ -1691,6 +1704,7 @@
             appState.selectedPlantId = plantId;
             renderInspector();
             renderMapCanvas();
+            lookupPlantInfo(false);
         }
 
         function getSelectedPlant() {
@@ -1733,6 +1747,7 @@
             document.getElementById('inspColorInput').value = plant.color || '#22c55e';
 
             renderPlantNotes(plant);
+            renderPlantInfoPanel(plant);
         }
 
         function updateSelectedPlantFromInput() {
@@ -1755,6 +1770,147 @@
 
             saveState();
             renderMapCanvas();
+            lookupPlantInfo(false);
+        }
+
+        /**
+         * Automatic Plant Info Lookup (Wikipedia)
+         * Searches Wikipedia for whatever name/botanical name is entered and
+         * caches the result on the plant itself, so it syncs to Supabase
+         * along with the rest of the plant's data and doesn't get re-fetched
+         * every time the plant is simply re-selected.
+         */
+        let plantLookupTimer = null;
+        let plantLookupInFlight = {}; // plantId -> true while a search is running (not persisted)
+
+        function lookupPlantInfo(forceRefresh) {
+            const plant = getSelectedPlant();
+            if (!plant) return;
+
+            const query = ((plant.botanicalName && plant.botanicalName.trim()) || (plant.name || '').trim());
+            if (!query) {
+                renderPlantInfoPanel(plant);
+                return;
+            }
+
+            // Already have a cached result for this exact name - just show it.
+            if (!forceRefresh && plant.wikiInfo && typeof plant.wikiInfo === 'object' && plant.wikiInfo.query === query) {
+                renderPlantInfoPanel(plant);
+                return;
+            }
+
+            clearTimeout(plantLookupTimer);
+            plantLookupTimer = setTimeout(() => runPlantLookup(plant.id, query), 500);
+        }
+
+        async function runPlantLookup(plantId, query) {
+            plantLookupInFlight[plantId] = true;
+            const plantNow = appState.plants.find(p => p.id === plantId);
+            if (plantNow && getSelectedPlant() === plantNow) renderPlantInfoPanel(plantNow);
+
+            let result;
+            try {
+                const info = await fetchWikipediaInfo(query);
+                result = info ? { ...info, query } : { notFound: true, query };
+            } catch (err) {
+                console.error('Plant info lookup failed', err);
+                result = { error: true, query };
+            }
+
+            delete plantLookupInFlight[plantId];
+
+            const plant = appState.plants.find(p => p.id === plantId);
+            if (!plant) return; // plant was deleted or the zone was cleared mid-search
+
+            plant.wikiInfo = result;
+            saveState();
+
+            if (getSelectedPlant() === plant) renderPlantInfoPanel(plant);
+        }
+
+        async function fetchWikipediaInfo(query) {
+            const params = new URLSearchParams({
+                action: 'query',
+                generator: 'search',
+                gsrsearch: query,
+                gsrlimit: '1',
+                prop: 'extracts|pageimages|info',
+                exintro: 'true',
+                explaintext: 'true',
+                exchars: '600',
+                piprop: 'thumbnail',
+                pithumbsize: '300',
+                inprop: 'url',
+                format: 'json',
+                origin: '*'
+            });
+
+            const res = await fetch(`https://en.wikipedia.org/w/api.php?${params.toString()}`);
+            if (!res.ok) throw new Error('Wikipedia request failed: ' + res.status);
+
+            const data = await res.json();
+            const pages = data.query && data.query.pages;
+            if (!pages) return null;
+
+            const page = Object.values(pages)[0];
+            if (!page || page.missing || !page.extract) return null;
+
+            return {
+                title: page.title,
+                extract: page.extract,
+                thumbnail: page.thumbnail ? page.thumbnail.source : null,
+                pageUrl: page.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, '_'))}`
+            };
+        }
+
+        function renderPlantInfoPanel(plant) {
+            const el = document.getElementById('plantInfoContent');
+            if (!el) return;
+
+            if (!plant) {
+                el.innerHTML = `<p class="text-slate-500 italic">Type a plant name above to auto-search.</p>`;
+                return;
+            }
+
+            if (plantLookupInFlight[plant.id]) {
+                el.innerHTML = `<p class="text-slate-500"><i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i> Searching for "${escapeHtml(plant.botanicalName || plant.name)}"...</p>`;
+                return;
+            }
+
+            const info = plant.wikiInfo;
+
+            if (info && info.error) {
+                el.innerHTML = `<p class="text-rose-400"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Couldn't reach Wikipedia. Try refreshing.</p>`;
+                return;
+            }
+
+            if (info && info.notFound) {
+                el.innerHTML = `<p class="text-slate-500 italic">No reference info found for "${escapeHtml(info.query)}". Try a more specific common or botanical name.</p>`;
+                return;
+            }
+
+            if (info && info.extract) {
+                el.innerHTML = `
+                    <div class="flex gap-3">
+                        ${info.thumbnail ? `<img src="${escapeHtml(info.thumbnail)}" class="w-16 h-16 object-cover rounded-lg border border-slate-800 flex-shrink-0">` : ''}
+                        <div class="min-w-0">
+                            <p class="text-slate-300">${escapeHtml(info.extract)}</p>
+                            <a href="${escapeHtml(info.pageUrl)}" target="_blank" rel="noopener noreferrer" class="text-[10px] text-emerald-400 hover:underline inline-flex items-center gap-1 mt-1.5">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> ${escapeHtml(info.title)} on Wikipedia
+                            </a>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            el.innerHTML = `<p class="text-slate-500 italic">Type a plant name above to auto-search.</p>`;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str == null ? '' : String(str);
+            return div.innerHTML;
         }
 
         function addNoteToSelectedPlant() {
