@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GardenScape Pro - Yard & Micro-Sun Mapper</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        yard: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                            950: '#052e16',
+                        },
+                        sun: {
+                            full: '#f59e0b',
+                            partial: '#84cc16',
+                            shade: '#6366f1',
+                            deep: '#3b82f6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .canvas-bg-grass {
+            background-color: #1a2f1d;
+            background-image: radial-gradient(#274a2c 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .canvas-bg-dirt {
+            background-color: #2a1f18;
+            background-image: radial-gradient(#3d2c22 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .canvas-bg-grid {
+            background-color: #0f172a;
+            background-image: linear-gradient(to right, #1e293b 1px, transparent 1px),
+                              linear-gradient(to bottom, #1e293b 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .sun-overlay-full { fill: rgba(245, 158, 11, 0.18); stroke: rgba(245, 158, 11, 0.5); }
+        .sun-overlay-partial { fill: rgba(132, 204, 22, 0.15); stroke: rgba(132, 204, 22, 0.5); }
+        .sun-overlay-shade { fill: rgba(99, 102, 241, 0.18); stroke: rgba(99, 102, 241, 0.5); }
+        .sun-overlay-deep { fill: rgba(30, 41, 59, 0.5); stroke: rgba(148, 163, 184, 0.5); }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        .plant-element {
+            transition: filter 0.2s ease;
+            cursor: move;
+        }
+        .plant-element:hover {
+            filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.6));
+        }
+        .plant-element.selected {
+            filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.9));
+        }
+
+        .resize-handle {
+            cursor: nwse-resize;
+            fill: #3b82f6;
+            stroke: #ffffff;
+            stroke-width: 2;
+            transition: transform 0.1s ease;
+        }
+        .resize-handle:hover {
+            transform: scale(1.3);
+            fill: #60a5fa;
+        }
+
+        .compass-ring {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Range Input Custom Styling */
+        input[type=range] {
+            accent-color: #f59e0b;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-200 select-none">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-950 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-4 z-20">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-emerald-600 to-green-400 p-2.5 rounded-xl shadow-lg shadow-emerald-950/50 flex items-center justify-center">
+                <i class="fa-solid fa-tree text-slate-950 text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight text-white flex items-center gap-2">
+                    GardenScape <span class="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">Pro 2.0</span>
+                </h1>
+                <p class="text-xs text-slate-400">Yard Mapper, Variable Sun Exposure & Shadows</p>
+            </div>
+        </div>
+
+        <!-- Zone Selector Tabs -->
+        <div class="flex items-center bg-slate-900 border border-slate-800 p-1 rounded-xl overflow-x-auto max-w-xl">
+            <div id="zoneTabsList" class="flex items-center space-x-1">
+                <!-- Tabs dynamically rendered -->
+            </div>
+            <button onclick="openAddZoneModal()" class="px-3 py-1.5 text-xs font-medium text-emerald-400 hover:bg-emerald-950/50 rounded-lg transition flex items-center gap-1.5 whitespace-nowrap ml-1 border border-dashed border-emerald-800/60">
+                <i class="fa-solid fa-plus"></i> Add Zone
+            </button>
+        </div>
+
+        <!-- View Switcher & Action Buttons -->
+        <div class="flex items-center gap-2">
+            <div class="bg-slate-900 border border-slate-800 p-1 rounded-xl flex">
+                <button id="viewMapBtn" onclick="switchView('map')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-map"></i> Layout Map
+                </button>
+                <button id="viewSunBtn" onclick="switchView('sun')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-sun"></i> Sun Tracker
+                </button>
+                <button id="viewPlantsBtn" onclick="switchView('plants')" class="px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-leaf"></i> Plant Index
+                </button>
+            </div>
+
+            <div class="h-6 w-px bg-slate-800 mx-1"></div>
+
+            <button onclick="exportData()" title="Export JSON" class="p-2 text-slate-400 hover:text-white bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-xl transition">
+                <i class="fa-solid fa-download text-sm"></i>
+            </button>
+            <button onclick="importDataTrigger()" title="Import JSON" class="p-2 text-slate-400 hover:text-white bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-xl transition">
+                <i class="fa-solid fa-upload text-sm"></i>
+            </button>
+            <input type="file" id="importFileInput" class="hidden" accept=".json" onchange="importData(event)">
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- ================= VIEW 1: INTERACTIVE MAP EDITOR ================= -->
+        <div id="mapView" class="flex-1 flex overflow-hidden w-full h-full">
+            
+            <!-- Left Tool Palette Sidebar -->
+            <aside class="w-72 bg-slate-950 border-r border-slate-800 flex flex-col z-10">
+                <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-shapes text-emerald-400"></i> Add Elements
+                    </h2>
+                    <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded">Drag & Scale</span>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-3 space-y-4">
+                    
+                    <!-- Presets / Quick Shapes -->
+                    <div>
+                        <div class="text-xs font-medium text-slate-300 mb-2">Plant Categories</div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="addNewPlantShape('tree')" class="flex flex-col items-center justify-center p-2.5 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl transition hover:bg-slate-800/80 group text-center">
+                                <div class="w-9 h-9 rounded-full bg-emerald-950 border border-emerald-700/60 flex items-center justify-center text-emerald-400 mb-1 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-tree text-base"></i>
+                                </div>
+                                <span class="text-xs font-medium text-slate-200">Tree</span>
+                                <span class="text-[10px] text-slate-500">Canopy / Shade</span>
+                            </button>
+
+                            <button onclick="addNewPlantShape('shrub')" class="flex flex-col items-center justify-center p-2.5 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl transition hover:bg-slate-800/80 group text-center">
+                                <div class="w-9 h-9 rounded-full bg-lime-950 border border-lime-700/60 flex items-center justify-center text-lime-400 mb-1 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-spa text-base"></i>
+                                </div>
+                                <span class="text-xs font-medium text-slate-200">Shrub</span>
+                                <span class="text-[10px] text-slate-500">Medium bush</span>
+                            </button>
+
+                            <button onclick="addNewPlantShape('flower')" class="flex flex-col items-center justify-center p-2.5 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl transition hover:bg-slate-800/80 group text-center">
+                                <div class="w-9 h-9 rounded-full bg-rose-950 border border-rose-700/60 flex items-center justify-center text-rose-400 mb-1 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-seedling text-base"></i>
+                                </div>
+                                <span class="text-xs font-medium text-slate-200">Flower</span>
+                                <span class="text-[10px] text-slate-500">Perennials / Annuals</span>
+                            </button>
+
+                            <button onclick="addNewPlantShape('vegetable')" class="flex flex-col items-center justify-center p-2.5 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl transition hover:bg-slate-800/80 group text-center">
+                                <div class="w-9 h-9 rounded-full bg-amber-950 border border-amber-700/60 flex items-center justify-center text-amber-400 mb-1 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-carrot text-base"></i>
+                                </div>
+                                <span class="text-xs font-medium text-slate-200">Veggie Crop</span>
+                                <span class="text-[10px] text-slate-500">Garden plot</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Hardscapes & Structures (Resizable) -->
+                    <div>
+                        <div class="text-xs font-medium text-slate-300 mb-2">Hardscapes & Resizable Structures</div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="addNewPlantShape('planter')" class="flex flex-col items-center justify-center p-2.5 bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-xl transition hover:bg-slate-800/80 group text-center">
+                                <div class="w-9 h-9 rounded-lg bg-orange-950/60 border border-orange-800/60 flex items-center justify-center text-orange-400 mb-1 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-vector-square text-base"></i>
+                                </div>
+                                <span class="text-xs font-medium text-slate-200">Raised Bed</span>
+                                <span class="text-[10px] text-slate-500">Resizable box</span>
+                            </button>
+
+                            <button onclick="addNewPlantShape('patio')" class="flex flex-col items-center justify-center p-2.5 bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-xl transition hover:bg-slate-800/80 group text-center">
+                                <div class="w-9 h-9 rounded-lg bg-slate-800 border border-slate-600 flex items-center justify-center text-slate-300 mb-1 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-border-all text-base"></i>
+                                </div>
+                                <span class="text-xs font-medium text-slate-200">Patio / Deck</span>
+                                <span class="text-[10px] text-slate-500">Paved surface</span>
+                            </button>
+
+                            <button onclick="addNewPlantShape('structure')" class="flex flex-col items-center justify-center p-2.5 bg-slate-900 border border-slate-800 hover:border-slate-600 rounded-xl transition hover:bg-slate-800/80 group text-center col-span-2">
+                                <div class="w-9 h-9 rounded-lg bg-indigo-950/70 border border-indigo-700/60 flex items-center justify-center text-indigo-300 mb-1 group-hover:scale-110 transition">
+                                    <i class="fa-solid fa-house text-base"></i>
+                                </div>
+                                <span class="text-xs font-medium text-slate-200">House / Shed / Wall</span>
+                                <span class="text-[10px] text-slate-500">Casts long dynamic shadow</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Preset Plant Library -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-xs font-medium text-slate-300">Quick Plant Presets</div>
+                        </div>
+                        <div class="space-y-1.5" id="presetPlantsList">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Canvas Options Bottom Bar -->
+                <div class="p-3 border-t border-slate-800 bg-slate-900/50 space-y-2">
+                    <div class="text-xs font-medium text-slate-400">Map & Sun Styling</div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-400">Background:</span>
+                        <select id="canvasTextureSelect" onchange="changeCanvasTexture(this.value)" class="bg-slate-800 border border-slate-700 text-xs rounded-lg px-2 py-1 text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <option value="grass">Grass Yard</option>
+                            <option value="dirt">Rich Soil</option>
+                            <option value="grid">Technical Grid</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-400">Micro-Sun Overlay:</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="sunOverlayToggle" onchange="toggleSunOverlay()" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-400">Cast Dynamic Shadows:</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="shadowsToggle" checked onchange="toggleShadows()" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                        </label>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Canvas Work Area -->
+            <main class="flex-1 flex flex-col relative overflow-hidden bg-slate-950">
+                
+                <!-- Zone & Solar Simulator Header Strip -->
+                <div class="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 z-10">
+                    <div class="flex items-center space-x-3">
+                        <span id="currentZoneBadge" class="text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-950 text-emerald-400 border border-emerald-800/80">
+                            Front Yard
+                        </span>
+                        <div class="flex items-center space-x-2 text-xs text-slate-400">
+                            <span><i class="fa-regular fa-sun text-amber-400 mr-1"></i> Default: <strong id="currentZoneSunLabel" class="text-slate-200">Full Sun</strong></span>
+                            <span>•</span>
+                            <span id="zonePlantCountText">0 Mapped Elements</span>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Solar Time & North Direction Toolbar -->
+                    <div class="flex items-center space-x-4 bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-1.5">
+                        
+                        <!-- Compass Direction Selector -->
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-compass text-amber-400 text-sm"></i>
+                            <span class="text-xs font-semibold text-slate-300">North:</span>
+                            <select id="compassNorthSelect" onchange="updateNorthDirection(this.value)" class="bg-slate-800 border border-slate-700 text-xs rounded-lg px-2 py-1 text-amber-400 font-bold focus:outline-none">
+                                <option value="0">North ↑ (Top)</option>
+                                <option value="90">North → (Right)</option>
+                                <option value="180">North ↓ (Bottom)</option>
+                                <option value="270">North ← (Left)</option>
+                            </select>
+                        </div>
+
+                        <div class="h-4 w-px bg-slate-800"></div>
+
+                        <!-- Time of Day Slider for Dynamic Shadow Simulator -->
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-clock text-indigo-400 text-xs"></i>
+                            <span class="text-xs font-semibold text-slate-300">Sun Time:</span>
+                            <input type="range" id="solarTimeSlider" min="6" max="19" step="0.5" value="13" oninput="updateSolarTime(this.value)" class="w-24 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer">
+                            <span id="solarTimeDisplay" class="text-xs font-bold text-amber-400 w-16">1:00 PM</span>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Action Buttons -->
+                    <div class="flex items-center space-x-2">
+                        <button onclick="resetZoom()" class="px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition" title="Reset View">
+                            <i class="fa-solid fa-expand text-xs"></i> Fit
+                        </button>
+                        <button onclick="clearCurrentZoneMap()" class="px-2.5 py-1 text-xs bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 rounded-lg transition">
+                            <i class="fa-solid fa-trash text-xs mr-1"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SVG Interactive Canvas Container -->
+                <div id="canvasViewport" class="flex-1 w-full h-full relative overflow-hidden canvas-bg-grass flex items-center justify-center">
+                    
+                    <svg id="gardenSVG" class="w-full h-full absolute inset-0 cursor-crosshair" style="min-width: 1000px; min-height: 800px;">
+                        <defs>
+                            <!-- Grid Pattern -->
+                            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.05)" stroke-width="1"/>
+                            </pattern>
+                            <!-- Dropshadow Filter for Elements -->
+                            <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+                                <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.5"/>
+                            </filter>
+                            <!-- Dynamic Cast Shadow Blur -->
+                            <filter id="castShadowBlur">
+                                <feGaussianBlur stdDeviation="2" />
+                            </filter>
+                        </defs>
+
+                        <!-- Background Grid Layer -->
+                        <rect width="100%" height="100%" fill="url(#grid)" />
+
+                        <!-- Zone Sun Exposure Layer (Optional Base Overlay) -->
+                        <g id="sunOverlayGroup" class="hidden">
+                            <!-- Rendered dynamically -->
+                        </g>
+
+                        <!-- Dynamic Cast Shadows Layer (Based on Solar Position & Compass) -->
+                        <g id="shadowsGroup"></g>
+
+                        <!-- Mapped Elements Layer (Plants, Raised Beds, Hardscapes) -->
+                        <g id="mapElementsGroup">
+                            <!-- Dynamic shapes rendered here -->
+                        </g>
+
+                        <!-- Selection Overlay Handle Group & Resizers -->
+                        <g id="selectionGroup"></g>
+                    </svg>
+
+                    <!-- Interactive On-Canvas Compass Rose Widget -->
+                    <div class="absolute bottom-4 left-4 bg-slate-950/85 backdrop-blur-md border border-slate-800 p-3 rounded-2xl shadow-xl flex items-center space-x-3 pointer-events-none">
+                        <div class="relative w-10 h-10 flex items-center justify-center">
+                            <div id="compassDial" class="compass-ring absolute inset-0 flex items-center justify-center">
+                                <i class="fa-solid fa-location-arrow text-amber-400 text-xl transform -rotate-45"></i>
+                            </div>
+                            <span class="text-[9px] font-black text-amber-400 absolute top-0">N</span>
+                        </div>
+                        <div>
+                            <div id="compassDirectionText" class="text-xs font-bold text-white">North ↑</div>
+                            <div id="solarSunAngleText" class="text-[10px] text-slate-400">Sun: SW • 45° Elev</div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State Notice -->
+                    <div id="emptyMapNotice" class="absolute pointer-events-none flex flex-col items-center justify-center text-center p-6 bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-800 max-w-sm shadow-2xl">
+                        <div class="w-12 h-12 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center text-emerald-400 mb-3 text-xl">
+                            <i class="fa-solid fa-compass-drafting"></i>
+                        </div>
+                        <h3 class="font-semibold text-slate-200 text-sm mb-1">Your Yard Map is Empty</h3>
+                        <p class="text-xs text-slate-400 mb-3">Add trees, resizable raised beds, patios, or plants from the sidebar to map your yard and test solar shadows.</p>
+                        <span class="text-[11px] text-emerald-400 font-medium">Click any item on left panel to place!</span>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Inspector Sidebar (Plant / Hardscape / Micro-Sun Details) -->
+            <aside id="inspectorSidebar" class="w-80 bg-slate-950 border-l border-slate-800 flex flex-col z-10 transition-all duration-300">
+                <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-blue-400"></i> Element Details & Sizing
+                    </h2>
+                    <span id="selectedBadge" class="text-[10px] bg-blue-950 text-blue-400 border border-blue-800 px-2 py-0.5 rounded">Active Selection</span>
+                </div>
+
+                <div id="inspectorContent" class="flex-1 overflow-y-auto p-4 space-y-4">
+                    <!-- Default message when nothing selected -->
+                    <div id="noSelectionMsg" class="h-full flex flex-col items-center justify-center text-center text-slate-500 py-12">
+                        <i class="fa-solid fa-up-right-and-down-left-from-center text-3xl mb-3 opacity-40"></i>
+                        <p class="text-xs font-medium">Click any structure, hardscape, or plant in the map to drag, resize boundaries, and set micro-sun levels.</p>
+                    </div>
+
+                    <!-- Inspector Form Content -->
+                    <div id="inspectorForm" class="hidden space-y-4">
+                        
+                        <!-- Header Preview Card -->
+                        <div class="relative group rounded-xl overflow-hidden border border-slate-800 bg-slate-900">
+                            <img id="inspImagePreview" src="https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60" alt="Plant Image" class="w-full h-32 object-cover" onerror="this.src='https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'">
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-end p-3">
+                                <div id="inspTypeBadge" class="self-start text-[10px] font-bold uppercase tracking-wide bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-full mb-1">
+                                    Tree
+                                </div>
+                                <h3 id="inspTitleHeader" class="text-base font-bold text-white leading-snug">Japanese Maple</h3>
+                                <p id="inspBotanicalHeader" class="text-xs italic text-slate-300">Acer palmatum</p>
+                            </div>
+                        </div>
+
+                        <!-- Basic Information Inputs -->
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-[11px] font-medium text-slate-400 block mb-1">Common Name / Structure Title</label>
+                                <input type="text" id="inspNameInput" onchange="updateSelectedPlantFromInput()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[11px] font-medium text-slate-400 block mb-1">Botanical Name</label>
+                                    <input type="text" id="inspBotanicalInput" onchange="updateSelectedPlantFromInput()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500" placeholder="e.g. Acer rubrum">
+                                </div>
+                                <div>
+                                    <label class="text-[11px] font-medium text-slate-400 block mb-1">Category</label>
+                                    <select id="inspCategorySelect" onchange="updateSelectedPlantFromInput()" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                                        <option value="tree">Tree</option>
+                                        <option value="shrub">Shrub</option>
+                                        <option value="flower">Flower / Perennial</option>
+                                        <option value="vegetable">Vegetable / Herb</option>
+                                        <option value="planter">Raised Bed</option>
+                                        <option value="patio">Hardscape Deck</option>
+                                        <option value="structure">House / Wall Structure</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dimensions & Resizing Controls (Feature 1) -->
+                        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
+                            <div class="text-xs font-semibold text-slate-300 border-b border-slate-800 pb-1.5 flex items-center justify-between">
+                                <span><i class="fa-solid fa-up-right-and-down-left-from-center text-blue-400 mr-1.5"></i> Dimensions & Sizing</span>
+                                <span class="text-[10px] text-slate-500">Drag blue handles on map</span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[11px] font-medium text-slate-400 block mb-1">Width (px)</label>
+                                    <input type="number" id="inspWidthInput" min="20" max="800" onchange="updateSelectedPlantFromInput()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white">
+                                </div>
+                                <div>
+                                    <label class="text-[11px] font-medium text-slate-400 block mb-1">Height / Diameter</label>
+                                    <input type="number" id="inspHeightInput" min="20" max="800" onchange="updateSelectedPlantFromInput()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Micro-Zone Sun Exposure Settings (Feature 2) -->
+                        <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-3">
+                            <div class="text-xs font-semibold text-slate-300 border-b border-slate-800 pb-1.5 flex items-center justify-between">
+                                <span><i class="fa-solid fa-sun text-amber-400 mr-1.5"></i> Micro-Zone Sun Exposure</span>
+                                <span class="text-[10px] text-amber-400 font-bold">Variable Sun</span>
+                            </div>
+
+                            <div>
+                                <label class="text-[11px] font-medium text-slate-400 block mb-1">Micro Exposure at Location</label>
+                                <select id="inspMicroSunSelect" onchange="updateSelectedPlantFromInput()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-amber-400 font-semibold focus:outline-none focus:border-amber-500">
+                                    <option value="Full Sun">☀️ Full Sun (6+ hrs direct)</option>
+                                    <option value="Partial Shade">⛅ Partial Shade (3-6 hrs light)</option>
+                                    <option value="Full Shade">☁️ Full Shade (<3 hrs light)</option>
+                                    <option value="Deep Shade">🌑 Deep Shade (Fence/Wall shadow)</option>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[11px] font-medium text-slate-400 block mb-1">Water Need</label>
+                                    <select id="inspWaterSelect" onchange="updateSelectedPlantFromInput()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-cyan-400 focus:outline-none">
+                                        <option value="Low">💧 Low / Drought</option>
+                                        <option value="Moderate">💧💧 Moderate</option>
+                                        <option value="High">💧💧💧 High / Moist</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[11px] font-medium text-slate-400 block mb-1">Fill Color</label>
+                                    <input type="color" id="inspColorInput" onchange="updateSelectedPlantFromInput()" class="w-full h-7 bg-slate-950 border border-slate-800 rounded-lg p-0.5 cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Plant Care Notes Log -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-note-sticky text-amber-400"></i> Plant Notes & Microclimate Log
+                                </label>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <input type="text" id="inspNewNoteInput" placeholder="Add note or micro-sun observation..." class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500" onkeypress="if(event.key==='Enter') addNoteToSelectedPlant()">
+                                <button onclick="addNoteToSelectedPlant()" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs transition">
+                                    Add
+                                </button>
+                            </div>
+
+                            <div id="inspNotesList" class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                                <!-- Notes rendered here -->
+                            </div>
+                        </div>
+
+                        <!-- Delete Element Action -->
+                        <div class="pt-2 border-t border-slate-900">
+                            <button onclick="deleteSelectedPlant()" class="w-full py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/50 rounded-xl text-xs font-medium transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-trash"></i> Remove from Layout
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </aside>
+
+        </div>
+
+        <!-- ================= VIEW 2: ZONE SUN TRACKER ================= -->
+        <div id="sunView" class="hidden flex-1 p-6 overflow-y-auto bg-slate-950 w-full">
+            <div class="max-w-4xl mx-auto space-y-6">
+                
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-sun text-amber-400"></i> Zone Sun Exposure & Micro-Shade Logger
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Log daylight hours and directional compass solar exposure for every area of your property.</p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-2 rounded-xl flex items-center gap-3">
+                        <span class="text-xs text-slate-400">Active Zone:</span>
+                        <select id="sunZoneSelect" onchange="switchZoneFromSunTab(this.value)" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1 text-xs text-emerald-400 font-bold focus:outline-none">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sun Meter Summary Card -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center space-x-4">
+                        <div id="sunRatingIconBg" class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 text-2xl">
+                            <i class="fa-solid fa-sun"></i>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400 uppercase font-semibold">Zone Base Sun</div>
+                            <div id="sunRatingText" class="text-lg font-bold text-amber-400">Full Sun</div>
+                            <div id="sunHoursTotal" class="text-xs text-slate-400">6.5 Solar Hours / Day</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 text-2xl">
+                            <i class="fa-solid fa-compass"></i>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400 uppercase font-semibold">Compass North Setting</div>
+                            <select id="zoneOrientationSelect" onchange="updateZoneOrientation(this.value)" class="mt-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
+                                <option value="North Top">North Facing Top (0°)</option>
+                                <option value="North Right">North Facing Right (90°)</option>
+                                <option value="North Bottom">North Facing Bottom (180°)</option>
+                                <option value="North Left">North Facing Left (270°)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-2xl">
+                            <i class="fa-solid fa-seedling"></i>
+                        </div>
+                        <div>
+                            <div class="text-[11px] text-slate-400 uppercase font-semibold">Best Compatible Crops</div>
+                            <div id="sunBestPlantsText" class="text-xs font-medium text-slate-200 mt-1">Tomatoes, Roses, Fruit Trees, Lavender</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hour-by-Hour Daylight Grid -->
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Daily Direct Sunlight Logger</h3>
+                            <p class="text-xs text-slate-400">Click hours when this zone receives direct, unshaded sunlight.</p>
+                        </div>
+                        <span class="text-xs text-slate-500"><i class="fa-solid fa-info-circle mr-1"></i> Tap pills to toggle</span>
+                    </div>
+
+                    <!-- 8 AM to 7 PM Hour Pills -->
+                    <div id="sunHourGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-2">
+                        <!-- Hour buttons rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Zone Microclimate Notes -->
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-sun text-slate-400"></i> Zone Microclimate & Environmental Notes
+                    </h3>
+                    <textarea id="zoneNotesTextarea" onchange="saveZoneMicroclimateNote(this.value)" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-emerald-500" placeholder="e.g. Shielded from north wind by fence. Soil stays damp near downspout..."></textarea>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ================= VIEW 3: PLANT INDEX & DIRECTORY ================= -->
+        <div id="plantsView" class="hidden flex-1 p-6 overflow-y-auto bg-slate-950 w-full">
+            <div class="max-w-6xl mx-auto space-y-6">
+                
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-book-open text-emerald-400"></i> Yard Plant Index & Micro-Sun Audit
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Directory of all mapped plants across front yard, back yard, and micro-zones.</p>
+                    </div>
+
+                    <!-- Search and Filter Bar -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
+                            <input type="text" id="plantSearchInput" onkeyup="renderPlantIndexTable()" placeholder="Search plant name..." class="bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 w-48">
+                        </div>
+                        <select id="plantZoneFilter" onchange="renderPlantIndexTable()" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none">
+                            <option value="ALL">All Zones</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Plant Grid / Cards View -->
+                <div id="plantDirectoryGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Add Zone Modal Dialog -->
+    <div id="addZoneModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-emerald-400"></i> Add New Yard Zone
+                </h3>
+                <button onclick="closeAddZoneModal()" class="text-slate-400 hover:text-white text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-medium text-slate-400 block mb-1">Zone Name</label>
+                    <input type="text" id="newZoneNameInput" placeholder="e.g. Side Yard / Herb Garden" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label class="text-xs font-medium text-slate-400 block mb-1">Default Base Exposure Level</label>
+                    <select id="newZoneSunSelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-amber-400 focus:outline-none">
+                        <option value="Full Sun">☀️ Full Sun (6+ Hours)</option>
+                        <option value="Partial Shade">⛅ Partial Shade (3-6 Hours)</option>
+                        <option value="Full Shade">☁️ Full Shade (<3 Hours)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button onclick="closeAddZoneModal()" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded-xl">Cancel</button>
+                <button onclick="saveNewZone()" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-slate-950 rounded-xl shadow transition">Create Zone</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * GardenScape App State and Storage Logic
+         */
+        const STORAGE_KEY = 'gardenscape_app_data_v2';
+
+        // Initial state with feature extensions (compass direction, solar time, micro-exposure, element dimensions)
+        let appState = {
+            activeZoneId: 'zone-front',
+            northAngle: 0, // 0 = Top, 90 = Right, 180 = Bottom, 270 = Left
+            solarTime: 13, // 1:00 PM solar simulation
+            showShadows: true,
+            zones: [
+                { id: 'zone-front', name: 'Front Yard', sunExposure: 'Full Sun', sunHours: [8, 9, 10, 11, 12, 13, 14], orientation: 'North Top', note: 'Front porch slope with high morning sun exposure.' },
+                { id: 'zone-back', name: 'Back Yard', sunExposure: 'Partial Shade', sunHours: [11, 12, 13, 14, 15], orientation: 'North Top', note: 'Large oak tree provides shade after 4 PM.' },
+                { id: 'zone-veg', name: 'Vegetable Garden', sunExposure: 'Full Sun', sunHours: [8, 9, 10, 11, 12, 13, 14, 15, 16], orientation: 'North Top', note: 'Enclosed raised beds with drip irrigation.' }
+            ],
+            plants: [
+                {
+                    id: 'p1',
+                    zoneId: 'zone-front',
+                    name: 'Japanese Maple Tree',
+                    botanicalName: 'Acer palmatum',
+                    category: 'tree',
+                    sunNeeds: 'Partial Shade',
+                    microSun: 'Partial Shade', // Feature 2: Variable sun exposure per item
+                    waterNeeds: 'Moderate',
+                    imageUrl: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60',
+                    plantedDate: '2023-04-12',
+                    x: 220,
+                    y: 220,
+                    width: 140,  // Feature 1: Explicit Width
+                    height: 140, // Feature 1: Explicit Height
+                    color: '#15803d',
+                    notes: [
+                        { id: 'n1', date: '2024-05-10', text: 'Pruned dead branches after winter frost.' }
+                    ]
+                },
+                {
+                    id: 'p2',
+                    zoneId: 'zone-front',
+                    name: 'Front House Structure',
+                    botanicalName: 'Two Story Structure',
+                    category: 'structure',
+                    sunNeeds: 'Full Sun',
+                    microSun: 'Full Sun',
+                    waterNeeds: 'Low',
+                    imageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=500&auto=format&fit=crop&q=60',
+                    plantedDate: '',
+                    x: 520,
+                    y: 180,
+                    width: 240,
+                    height: 160,
+                    color: '#334155',
+                    notes: []
+                },
+                {
+                    id: 'p3',
+                    zoneId: 'zone-front',
+                    name: 'Main Raised Bed 1',
+                    botanicalName: 'Cedar Garden Box',
+                    category: 'planter',
+                    sunNeeds: 'Full Sun',
+                    microSun: 'Full Sun',
+                    waterNeeds: 'Moderate',
+                    imageUrl: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60',
+                    plantedDate: '2024-04-01',
+                    x: 520,
+                    y: 440,
+                    width: 180,
+                    height: 100,
+                    color: '#b45309',
+                    notes: [
+                        { id: 'n2', date: '2024-06-01', text: 'Gets direct sun between 10am and 4pm.' }
+                    ]
+                }
+            ],
+            selectedPlantId: null,
+            canvasBg: 'grass',
+            showSunOverlay: false
+        };
+
+        // Preset Library for Quick Adding
+        const PLANT_PRESETS = [
+            { name: 'Red Oak Tree', category: 'tree', sun: 'Full Sun', water: 'Moderate', color: '#166534', w: 160, h: 160, img: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?w=500&auto=format&fit=crop&q=60' },
+            { name: 'Hydrangea Bush', category: 'shrub', sun: 'Partial Shade', water: 'High', color: '#3b82f6', w: 90, h: 90, img: 'https://images.unsplash.com/photo-1508610048659-a06b669e3321?w=500&auto=format&fit=crop&q=60' },
+            { name: 'Echinacea / Coneflower', category: 'flower', sun: 'Full Sun', water: 'Low', color: '#ec4899', w: 70, h: 70, img: 'https://images.unsplash.com/photo-1563241527-3004b7be0ffd?w=500&auto=format&fit=crop&q=60' },
+            { name: 'Fresh Basil Plot', category: 'vegetable', sun: 'Full Sun', water: 'Moderate', color: '#10b981', w: 80, h: 80, img: 'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?w=500&auto=format&fit=crop&q=60' },
+            { name: 'Patio Paver Deck', category: 'patio', sun: 'Full Sun', water: 'Low', color: '#64748b', w: 200, h: 140, img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=500&auto=format&fit=crop&q=60' }
+        ];
+
+        // Interaction State Variables
+        let isDragging = false;
+        let isResizing = false;
+        let activeHandle = null; // 'nw', 'ne', 'se', 'sw', 'r'
+        let dragTarget = null;
+        let dragStartPos = { x: 0, y: 0 };
+        let initialDimensions = { x: 0, y: 0, width: 0, height: 0 };
+
+        // Initialize App
+        window.onload = function() {
+            loadSavedState();
+            renderZoneTabs();
+            renderPresetSidebar();
+            renderMapCanvas();
+            renderSunTrackerView();
+            setupSVGCanvasEvents();
+            updateCompassAndSolarUI();
+        };
+
+        function saveState() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        }
+
+        function loadSavedState() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    appState = { ...appState, ...JSON.parse(saved) };
+                } catch(e) {
+                    console.error("Failed to parse saved state", e);
+                }
+            }
+        }
+
+        /**
+         * Navigation & View Switching Logic
+         */
+        function switchView(viewName) {
+            document.getElementById('mapView').classList.add('hidden');
+            document.getElementById('sunView').classList.add('hidden');
+            document.getElementById('plantsView').classList.add('hidden');
+
+            document.getElementById('viewMapBtn').className = "px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5";
+            document.getElementById('viewSunBtn').className = "px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5";
+            document.getElementById('viewPlantsBtn').className = "px-3 py-1.5 text-xs font-medium rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1.5";
+
+            if (viewName === 'map') {
+                document.getElementById('mapView').classList.remove('hidden');
+                document.getElementById('viewMapBtn').className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white shadow transition flex items-center gap-1.5";
+                renderMapCanvas();
+            } else if (viewName === 'sun') {
+                document.getElementById('sunView').classList.remove('hidden');
+                document.getElementById('viewSunBtn').className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white shadow transition flex items-center gap-1.5";
+                renderSunTrackerView();
+            } else if (viewName === 'plants') {
+                document.getElementById('plantsView').classList.remove('hidden');
+                document.getElementById('viewPlantsBtn').className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white shadow transition flex items-center gap-1.5";
+                renderPlantIndexTable();
+            }
+        }
+
+        /**
+         * Zone Management Functions
+         */
+        function renderZoneTabs() {
+            const container = document.getElementById('zoneTabsList');
+            container.innerHTML = '';
+
+            appState.zones.forEach(zone => {
+                const isActive = zone.id === appState.activeZoneId;
+                const btn = document.createElement('button');
+                btn.onclick = () => selectZone(zone.id);
+                btn.className = `px-3 py-1.5 text-xs font-medium rounded-lg transition flex items-center gap-1.5 whitespace-nowrap ${
+                    isActive 
+                    ? 'bg-emerald-600 text-white shadow-md' 
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`;
+                btn.innerHTML = `<i class="fa-solid fa-layer-group text-[10px]"></i> ${zone.name}`;
+                container.appendChild(btn);
+            });
+
+            const currentZone = getCurrentZone();
+            if (currentZone) {
+                document.getElementById('currentZoneBadge').innerText = currentZone.name;
+                document.getElementById('currentZoneSunLabel').innerText = `${currentZone.sunExposure}`;
+            }
+
+            populateZoneDropdowns();
+        }
+
+        function selectZone(zoneId) {
+            appState.activeZoneId = zoneId;
+            appState.selectedPlantId = null;
+            saveState();
+            renderZoneTabs();
+            renderMapCanvas();
+            renderInspector();
+        }
+
+        function getCurrentZone() {
+            return appState.zones.find(z => z.id === appState.activeZoneId) || appState.zones[0];
+        }
+
+        function openAddZoneModal() {
+            document.getElementById('addZoneModal').classList.remove('hidden');
+        }
+
+        function closeAddZoneModal() {
+            document.getElementById('addZoneModal').classList.add('hidden');
+        }
+
+        function saveNewZone() {
+            const nameInput = document.getElementById('newZoneNameInput').value.trim();
+            const sunSelect = document.getElementById('newZoneSunSelect').value;
+
+            if (!nameInput) return;
+
+            const newId = 'zone-' + Date.now();
+            const newZone = {
+                id: newId,
+                name: nameInput,
+                sunExposure: sunSelect,
+                sunHours: [9, 10, 11, 12, 13, 14],
+                orientation: 'North Top',
+                note: ''
+            };
+
+            appState.zones.push(newZone);
+            appState.activeZoneId = newId;
+            document.getElementById('newZoneNameInput').value = '';
+            closeAddZoneModal();
+            saveState();
+            renderZoneTabs();
+            renderMapCanvas();
+        }
+
+        function populateZoneDropdowns() {
+            const sunSelect = document.getElementById('sunZoneSelect');
+            const filterSelect = document.getElementById('plantZoneFilter');
+            
+            if (sunSelect) {
+                sunSelect.innerHTML = appState.zones.map(z => `<option value="${z.id}" ${z.id === appState.activeZoneId ? 'selected' : ''}>${z.name}</option>`).join('');
+            }
+
+            if (filterSelect) {
+                filterSelect.innerHTML = `<option value="ALL">All Zones</option>` + appState.zones.map(z => `<option value="${z.id}">${z.name}</option>`).join('');
+            }
+        }
+
+        /**
+         * STREAMING_CHUNK:Adding solar position math and compass rotation handler...
+         * Feature 3: Compass North Angle & Dynamic Solar Shadow Calculations
+         */
+        function updateNorthDirection(angleDeg) {
+            appState.northAngle = parseInt(angleDeg);
+            saveState();
+            updateCompassAndSolarUI();
+            renderMapCanvas();
+        }
+
+        function updateSolarTime(hoursValue) {
+            appState.solarTime = parseFloat(hoursValue);
+
+            // Format hours string (e.g., 13.5 -> "1:30 PM")
+            const hours = Math.floor(appState.solarTime);
+            const minutes = (appState.solarTime % 1) === 0 ? '00' : '30';
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHour = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+            
+            document.getElementById('solarTimeDisplay').innerText = `${displayHour}:${minutes} ${period}`;
+            
+            updateCompassAndSolarUI();
+            renderMapCanvas();
+        }
+
+        function toggleShadows() {
+            appState.showShadows = document.getElementById('shadowsToggle').checked;
+            renderMapCanvas();
+        }
+
+        function updateCompassAndSolarUI() {
+            // Update Compass Dial UI rotation
+            const compassDial = document.getElementById('compassDial');
+            if (compassDial) {
+                compassDial.style.transform = `rotate(${appState.northAngle}deg)`;
+            }
+
+            const dirMap = { 0: 'North ↑ (Top)', 90: 'North → (Right)', 180: 'North ↓ (Bottom)', 270: 'North ← (Left)' };
+            const selectEl = document.getElementById('compassNorthSelect');
+            if (selectEl) selectEl.value = appState.northAngle.toString();
+
+            const textEl = document.getElementById('compassDirectionText');
+            if (textEl) textEl.innerText = dirMap[appState.northAngle] || 'North ↑';
+
+            // Calculate Solar Azimuth (Sun position relative to North: East at 6am = 90deg, South at 12pm = 180deg, West at 6pm = 270deg)
+            const solarProgress = (appState.solarTime - 6) / 12; // 0.0 to 1.0
+            const solarAzimuth = 90 + (solarProgress * 180); // 90° (E) to 270° (W)
+
+            // Effective Sun Angle on SVG map canvas considering North offset
+            const effectiveSunAngle = (solarAzimuth + appState.northAngle) % 360;
+
+            // Solar altitude (sun height above horizon, max at noon = 70deg)
+            const solarElevation = Math.sin(solarProgress * Math.PI) * 70;
+
+            const sunAngleText = document.getElementById('solarSunAngleText');
+            if (sunAngleText) {
+                sunAngleText.innerText = `Sun: ${Math.round(solarAzimuth)}° Az | ${Math.round(solarElevation)}° Elev`;
+            }
+        }
+
+        /**
+         * Canvas Rendering Engine with Dynamic Cast Shadows & Micro-Zone Overlays
+         */
+        function renderMapCanvas() {
+            const svgGroup = document.getElementById('mapElementsGroup');
+            const shadowsGroup = document.getElementById('shadowsGroup');
+            const selectionGroup = document.getElementById('selectionGroup');
+            const sunOverlayGroup = document.getElementById('sunOverlayGroup');
+            const emptyNotice = document.getElementById('emptyMapNotice');
+            
+            svgGroup.innerHTML = '';
+            shadowsGroup.innerHTML = '';
+            selectionGroup.innerHTML = '';
+            sunOverlayGroup.innerHTML = '';
+
+            const activeZone = getCurrentZone();
+            const currentZonePlants = appState.plants.filter(p => p.zoneId === appState.activeZoneId);
+
+            document.getElementById('zonePlantCountText').innerText = `${currentZonePlants.length} Mapped Elements`;
+
+            if (currentZonePlants.length === 0) {
+                emptyNotice.classList.remove('hidden');
+            } else {
+                emptyNotice.classList.add('hidden');
+            }
+
+            // Calculate Shadow Direction Vectors based on Solar Time & North Direction Angle
+            const solarProgress = (appState.solarTime - 6) / 12; // 0 to 1
+            const solarAzimuth = 90 + (solarProgress * 180); // 90deg (East) to 270deg (West)
+            const effectiveSunAngleRad = ((solarAzimuth + appState.northAngle) * Math.PI) / 180;
+            const solarElevation = Math.max(10, Math.sin(solarProgress * Math.PI) * 70);
+            
+            // Shadow projects in OPPOSITE direction of Sun light
+            const shadowLengthMultiplier = Math.min(2.5, Math.max(0.3, 1 / Math.tan((solarElevation * Math.PI) / 180)));
+            const shadowDx = -Math.sin(effectiveSunAngleRad) * 40 * shadowLengthMultiplier;
+            const shadowDy = Math.cos(effectiveSunAngleRad) * 40 * shadowLengthMultiplier;
+
+            // Render Zone Base Sun Overlay if enabled
+            if (appState.showSunOverlay && activeZone) {
+                let sunClass = 'sun-overlay-full';
+                if (activeZone.sunExposure === 'Partial Shade') sunClass = 'sun-overlay-partial';
+                if (activeZone.sunExposure === 'Full Shade') sunClass = 'sun-overlay-shade';
+
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', '20');
+                rect.setAttribute('y', '20');
+                rect.setAttribute('width', '960');
+                rect.setAttribute('height', '760');
+                rect.setAttribute('rx', '16');
+                rect.setAttribute('class', sunClass);
+                rect.setAttribute('stroke-width', '2');
+                rect.setAttribute('stroke-dasharray', '6 6');
+                sunOverlayGroup.appendChild(rect);
+            }
+
+            // Render Elements and Cast Dynamic Shadows
+            currentZonePlants.forEach(plant => {
+                const isSelected = plant.id === appState.selectedPlantId;
+                const width = plant.width || plant.size || 100;
+                const height = plant.height || plant.size || 100;
+                const cx = plant.x + width / 2;
+                const cy = plant.y + height / 2;
+
+                // 1. Dynamic Cast Shadows (Feature 3)
+                if (appState.showShadows) {
+                    const shadowG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    shadowG.setAttribute('fill', 'rgba(15, 23, 42, 0.45)');
+                    shadowG.setAttribute('filter', 'url(#castShadowBlur)');
+
+                    let shadowHeightMultiplier = 1.0;
+                    if (plant.category === 'structure') shadowHeightMultiplier = 2.2;
+                    if (plant.category === 'tree') shadowHeightMultiplier = 1.8;
+                    if (plant.category === 'planter' || plant.category === 'flower') shadowHeightMultiplier = 0.4;
+
+                    const sdx = shadowDx * shadowHeightMultiplier;
+                    const sdy = shadowDy * shadowHeightMultiplier;
+
+                    if (plant.category === 'planter' || plant.category === 'patio' || plant.category === 'structure') {
+                        // Polygon Shadow projection for rectangular structures
+                        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                        const p1 = `${plant.x},${plant.y}`;
+                        const p2 = `${plant.x + width},${plant.y}`;
+                        const p3 = `${plant.x + width + sdx},${plant.y + height + sdy}`;
+                        const p4 = `${plant.x + sdx},${plant.y + height + sdy}`;
+                        polygon.setAttribute('points', `${p1} ${p2} ${p3} ${p4}`);
+                        shadowG.appendChild(polygon);
+                    } else {
+                        // Elliptical cast shadow for trees/plants
+                        const shadowEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                        shadowEllipse.setAttribute('cx', cx + sdx);
+                        shadowEllipse.setAttribute('cy', cy + sdy);
+                        shadowEllipse.setAttribute('rx', (width / 2) * 1.1);
+                        shadowEllipse.setAttribute('ry', (height / 2) * 0.9);
+                        shadowG.appendChild(shadowEllipse);
+                    }
+                    shadowsGroup.appendChild(shadowG);
+                }
+
+                // 2. Render Main Element Shape
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('class', `plant-element ${isSelected ? 'selected' : ''}`);
+                g.setAttribute('data-id', plant.id);
+
+                const microSun = plant.microSun || plant.sunNeeds || 'Full Sun';
+
+                if (plant.category === 'planter' || plant.category === 'patio' || plant.category === 'structure') {
+                    // Rectangular Resizable Shape
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', plant.x);
+                    rect.setAttribute('y', plant.y);
+                    rect.setAttribute('width', width);
+                    rect.setAttribute('height', height);
+                    rect.setAttribute('rx', plant.category === 'patio' ? '6' : plant.category === 'structure' ? '4' : '12');
+                    rect.setAttribute('fill', plant.color || (plant.category === 'structure' ? '#334155' : '#b45309'));
+                    rect.setAttribute('stroke', isSelected ? '#3b82f6' : 'rgba(255,255,255,0.3)');
+                    rect.setAttribute('stroke-width', isSelected ? '3' : '1.5');
+                    rect.setAttribute('filter', 'url(#shadow)');
+                    g.appendChild(rect);
+                } else {
+                    // Elliptical / Circular Resizable Canopy Shape
+                    const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    ellipse.setAttribute('cx', cx);
+                    ellipse.setAttribute('cy', cy);
+                    ellipse.setAttribute('rx', width / 2);
+                    ellipse.setAttribute('ry', height / 2);
+                    ellipse.setAttribute('fill', plant.color || '#22c55e');
+                    ellipse.setAttribute('fill-opacity', '0.85');
+                    ellipse.setAttribute('stroke', isSelected ? '#3b82f6' : 'rgba(255,255,255,0.4)');
+                    ellipse.setAttribute('stroke-width', isSelected ? '3' : '2');
+                    ellipse.setAttribute('filter', 'url(#shadow)');
+                    g.appendChild(ellipse);
+
+                    // Category Icon
+                    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    icon.setAttribute('x', cx);
+                    icon.setAttribute('y', cy);
+                    icon.setAttribute('text-anchor', 'middle');
+                    icon.setAttribute('dominant-baseline', 'central');
+                    icon.setAttribute('fill', '#ffffff');
+                    icon.setAttribute('font-size', Math.min(width, height) * 0.4 + 'px');
+                    icon.setAttribute('font-family', 'FontAwesome');
+                    
+                    let iconChar = '\uf1bb'; // tree
+                    if (plant.category === 'shrub') iconChar = '\uf801';
+                    if (plant.category === 'flower') iconChar = '\uf4d8';
+                    if (plant.category === 'vegetable') iconChar = '\uf787';
+
+                    icon.textContent = iconChar;
+                    g.appendChild(icon);
+                }
+
+                // Feature 2: Micro-Sun Exposure Visual Badge Indicator
+                const sunBadgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                const badgeX = plant.x + width - 10;
+                const badgeY = plant.y + 10;
+                
+                const badgeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                badgeCircle.setAttribute('cx', badgeX);
+                badgeCircle.setAttribute('cy', badgeY);
+                badgeCircle.setAttribute('r', '9');
+                
+                let badgeColor = '#f59e0b'; // Full sun
+                if (microSun === 'Partial Shade') badgeColor = '#84cc16';
+                if (microSun === 'Full Shade') badgeColor = '#6366f1';
+                if (microSun === 'Deep Shade') badgeColor = '#1e293b';
+
+                badgeCircle.setAttribute('fill', badgeColor);
+                badgeCircle.setAttribute('stroke', '#ffffff');
+                badgeCircle.setAttribute('stroke-width', '1.5');
+                sunBadgeG.appendChild(badgeCircle);
+
+                const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                badgeText.setAttribute('x', badgeX);
+                badgeText.setAttribute('y', badgeY);
+                badgeText.setAttribute('text-anchor', 'middle');
+                badgeText.setAttribute('dominant-baseline', 'central');
+                badgeText.setAttribute('fill', '#ffffff');
+                badgeText.setAttribute('font-size', '8px');
+                badgeText.setAttribute('font-family', 'FontAwesome');
+                badgeText.textContent = microSun === 'Full Sun' ? '\uf185' : (microSun === 'Partial Shade' ? '\uf6c4' : '\uf0c2');
+                sunBadgeG.appendChild(badgeText);
+
+                g.appendChild(sunBadgeG);
+
+                // Plant Common Name Label
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', cx);
+                label.setAttribute('y', plant.y + height + 16);
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('fill', '#f8fafc');
+                label.setAttribute('font-size', '11px');
+                label.setAttribute('font-weight', '600');
+                label.setAttribute('paint-order', 'stroke');
+                label.setAttribute('stroke', '#0f172a');
+                label.setAttribute('stroke-width', '3px');
+                label.textContent = plant.name;
+                g.appendChild(label);
+
+                svgGroup.appendChild(g);
+
+                // 3. Feature 1: Selection Bounding Box & Interactive Corner Resize Handles
+                if (isSelected) {
+                    const selG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+                    // Blue Bounding Box Outline
+                    const bbox = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    bbox.setAttribute('x', plant.x - 4);
+                    bbox.setAttribute('y', plant.y - 4);
+                    bbox.setAttribute('width', width + 8);
+                    bbox.setAttribute('height', height + 8);
+                    bbox.setAttribute('fill', 'none');
+                    bbox.setAttribute('stroke', '#3b82f6');
+                    bbox.setAttribute('stroke-width', '1.5');
+                    bbox.setAttribute('stroke-dasharray', '4 4');
+                    selG.appendChild(bbox);
+
+                    // 4 Corner Interactive Resize Handle Buttons
+                    const handlePositions = [
+                        { type: 'nw', x: plant.x - 4, y: plant.y - 4 },
+                        { type: 'ne', x: plant.x + width + 4, y: plant.y - 4 },
+                        { type: 'se', x: plant.x + width + 4, y: plant.y + height + 4 },
+                        { type: 'sw', x: plant.x - 4, y: plant.y + height + 4 }
+                    ];
+
+                    handlePositions.forEach(hp => {
+                        const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        handle.setAttribute('cx', hp.x);
+                        handle.setAttribute('cy', hp.y);
+                        handle.setAttribute('r', '6');
+                        handle.setAttribute('class', 'resize-handle');
+                        handle.setAttribute('data-handle', hp.type);
+                        handle.setAttribute('data-id', plant.id);
+                        selG.appendChild(handle);
+                    });
+
+                    selectionGroup.appendChild(selG);
+                }
+            });
+        }
+
+        /**
+         * SVG Drag & Click-to-Resize Event Listeners (Feature 1 Implementation)
+         */
+        function setupSVGCanvasEvents() {
+            const svg = document.getElementById('gardenSVG');
+
+            svg.addEventListener('mousedown', handlePointerDown);
+            svg.addEventListener('mousemove', handlePointerMove);
+            window.addEventListener('mouseup', handlePointerUp);
+
+            // Touch events support for mobile devices
+            svg.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) handlePointerDown(e.touches[0]);
+            });
+            svg.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 1 && (isDragging || isResizing)) handlePointerMove(e.touches[0]);
+            });
+            window.addEventListener('touchend', handlePointerUp);
+        }
+
+        function handlePointerDown(e) {
+            const targetHandle = e.target.closest('.resize-handle');
+            const targetElement = e.target.closest('.plant-element');
+
+            if (targetHandle) {
+                // Clicked a corner resize handle!
+                isResizing = true;
+                activeHandle = targetHandle.getAttribute('data-handle');
+                const plantId = targetHandle.getAttribute('data-id');
+                dragTarget = appState.plants.find(p => p.id === plantId);
+
+                const pt = getSVGCoordinates(e);
+                dragStartPos = { x: pt.x, y: pt.y };
+                initialDimensions = {
+                    x: dragTarget.x,
+                    y: dragTarget.y,
+                    width: dragTarget.width || dragTarget.size || 100,
+                    height: dragTarget.height || dragTarget.size || 100
+                };
+                e.stopPropagation();
+            } else if (targetElement) {
+                // Clicked an element to move or select
+                const plantId = targetElement.getAttribute('data-id');
+                selectPlant(plantId);
+
+                isDragging = true;
+                dragTarget = appState.plants.find(p => p.id === plantId);
+
+                const pt = getSVGCoordinates(e);
+                dragStartPos = {
+                    x: pt.x - dragTarget.x,
+                    y: pt.y - dragTarget.y
+                };
+            } else {
+                // Clicked canvas background -> Clear selection
+                selectPlant(null);
+            }
+        }
+
+        function handlePointerMove(e) {
+            if (!dragTarget) return;
+
+            const pt = getSVGCoordinates(e);
+
+            if (isResizing) {
+                // Scaling / Expanding boundaries (Feature 1)
+                const dx = pt.x - dragStartPos.x;
+                const dy = pt.y - dragStartPos.y;
+
+                let newW = initialDimensions.width;
+                let newH = initialDimensions.height;
+                let newX = initialDimensions.x;
+                let newY = initialDimensions.y;
+
+                if (activeHandle === 'se') {
+                    newW = Math.max(30, initialDimensions.width + dx);
+                    newH = Math.max(30, initialDimensions.height + dy);
+                } else if (activeHandle === 'sw') {
+                    newW = Math.max(30, initialDimensions.width - dx);
+                    newH = Math.max(30, initialDimensions.height + dy);
+                    if (newW > 30) newX = initialDimensions.x + dx;
+                } else if (activeHandle === 'ne') {
+                    newW = Math.max(30, initialDimensions.width + dx);
+                    newH = Math.max(30, initialDimensions.height - dy);
+                    if (newH > 30) newY = initialDimensions.y + dy;
+                } else if (activeHandle === 'nw') {
+                    newW = Math.max(30, initialDimensions.width - dx);
+                    newH = Math.max(30, initialDimensions.height - dy);
+                    if (newW > 30) newX = initialDimensions.x + dx;
+                    if (newH > 30) newY = initialDimensions.y + dy;
+                }
+
+                dragTarget.width = Math.round(newW);
+                dragTarget.height = Math.round(newH);
+                dragTarget.size = Math.round(Math.max(newW, newH));
+                dragTarget.x = Math.round(newX);
+                dragTarget.y = Math.round(newY);
+
+                renderMapCanvas();
+                renderInspectorValues();
+            } else if (isDragging) {
+                // Position Dragging
+                dragTarget.x = Math.max(20, Math.min(940, pt.x - dragStartPos.x));
+                dragTarget.y = Math.max(20, Math.min(740, pt.y - dragStartPos.y));
+                renderMapCanvas();
+            }
+        }
+
+        function handlePointerUp() {
+            if (isDragging || isResizing) {
+                isDragging = false;
+                isResizing = false;
+                dragTarget = null;
+                activeHandle = null;
+                saveState();
+            }
+        }
+
+        function getSVGCoordinates(e) {
+            const svg = document.getElementById('gardenSVG');
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            pt.y = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            return pt.matrixTransform(svg.getScreenCTM().inverse());
+        }
+
+        /**
+         * Adding Shapes and Preset Plants
+         */
+        function addNewPlantShape(category) {
+            const currentZone = getCurrentZone();
+            const defaultDim = category === 'tree' ? 140 : category === 'structure' ? 200 : category === 'planter' ? 150 : 90;
+            
+            const newPlant = {
+                id: 'plant-' + Date.now(),
+                zoneId: appState.activeZoneId,
+                name: `New ${category.charAt(0).toUpperCase() + category.slice(1)}`,
+                botanicalName: '',
+                category: category,
+                sunNeeds: currentZone ? currentZone.sunExposure : 'Full Sun',
+                microSun: currentZone ? currentZone.sunExposure : 'Full Sun',
+                waterNeeds: 'Moderate',
+                imageUrl: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60',
+                plantedDate: new Date().toISOString().split('T')[0],
+                x: 250 + Math.random() * 200,
+                y: 200 + Math.random() * 200,
+                width: defaultDim,
+                height: category === 'structure' ? 130 : defaultDim,
+                size: defaultDim,
+                color: category === 'tree' ? '#15803d' : category === 'shrub' ? '#65a30d' : category === 'flower' ? '#e11d48' : category === 'vegetable' ? '#d97706' : category === 'structure' ? '#334155' : '#b45309',
+                notes: []
+            };
+
+            appState.plants.push(newPlant);
+            selectPlant(newPlant.id);
+            saveState();
+            renderMapCanvas();
+        }
+
+        function renderPresetSidebar() {
+            const container = document.getElementById('presetPlantsList');
+            container.innerHTML = '';
+
+            PLANT_PRESETS.forEach(preset => {
+                const item = document.createElement('div');
+                item.onclick = () => addPresetPlant(preset);
+                item.className = "flex items-center space-x-2.5 p-2 bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-xl cursor-pointer transition hover:bg-slate-800/80 group";
+                item.innerHTML = `
+                    <img src="${preset.img}" class="w-8 h-8 rounded-lg object-cover" onerror="this.src='https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-medium text-slate-200 truncate group-hover:text-emerald-400 transition">${preset.name}</div>
+                        <div class="text-[10px] text-slate-500">${preset.sun} • ${preset.w}x${preset.h}px</div>
+                    </div>
+                    <i class="fa-solid fa-plus text-xs text-slate-600 group-hover:text-emerald-400"></i>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addPresetPlant(preset) {
+            const newPlant = {
+                id: 'plant-' + Date.now(),
+                zoneId: appState.activeZoneId,
+                name: preset.name,
+                botanicalName: '',
+                category: preset.category,
+                sunNeeds: preset.sun,
+                microSun: preset.sun,
+                waterNeeds: preset.water,
+                imageUrl: preset.img,
+                plantedDate: new Date().toISOString().split('T')[0],
+                x: 300 + Math.random() * 100,
+                y: 200 + Math.random() * 100,
+                width: preset.w,
+                height: preset.h,
+                size: Math.max(preset.w, preset.h),
+                color: preset.color,
+                notes: []
+            };
+
+            appState.plants.push(newPlant);
+            selectPlant(newPlant.id);
+            saveState();
+            renderMapCanvas();
+        }
+
+        /**
+         * Inspector Panel Logic
+         */
+        function selectPlant(plantId) {
+            appState.selectedPlantId = plantId;
+            renderInspector();
+            renderMapCanvas();
+        }
+
+        function getSelectedPlant() {
+            return appState.plants.find(p => p.id === appState.selectedPlantId);
+        }
+
+        function renderInspector() {
+            const plant = getSelectedPlant();
+            const noSel = document.getElementById('noSelectionMsg');
+            const form = document.getElementById('inspectorForm');
+
+            if (!plant) {
+                noSel.classList.remove('hidden');
+                form.classList.add('hidden');
+                return;
+            }
+
+            noSel.classList.add('hidden');
+            form.classList.remove('hidden');
+
+            renderInspectorValues();
+        }
+
+        function renderInspectorValues() {
+            const plant = getSelectedPlant();
+            if (!plant) return;
+
+            document.getElementById('inspTitleHeader').innerText = plant.name;
+            document.getElementById('inspBotanicalHeader').innerText = plant.botanicalName || 'No botanical name specified';
+            document.getElementById('inspTypeBadge').innerText = plant.category;
+            document.getElementById('inspImagePreview').src = plant.imageUrl || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60';
+            
+            document.getElementById('inspNameInput').value = plant.name;
+            document.getElementById('inspBotanicalInput').value = plant.botanicalName || '';
+            document.getElementById('inspCategorySelect').value = plant.category;
+            document.getElementById('inspWidthInput').value = plant.width || plant.size || 100;
+            document.getElementById('inspHeightInput').value = plant.height || plant.size || 100;
+            document.getElementById('inspMicroSunSelect').value = plant.microSun || plant.sunNeeds || 'Full Sun';
+            document.getElementById('inspWaterSelect').value = plant.waterNeeds || 'Moderate';
+            document.getElementById('inspColorInput').value = plant.color || '#22c55e';
+
+            renderPlantNotes(plant);
+        }
+
+        function updateSelectedPlantFromInput() {
+            const plant = getSelectedPlant();
+            if (!plant) return;
+
+            plant.name = document.getElementById('inspNameInput').value;
+            plant.botanicalName = document.getElementById('inspBotanicalInput').value;
+            plant.category = document.getElementById('inspCategorySelect').value;
+            plant.width = parseInt(document.getElementById('inspWidthInput').value) || 60;
+            plant.height = parseInt(document.getElementById('inspHeightInput').value) || 60;
+            plant.size = Math.max(plant.width, plant.height);
+            plant.microSun = document.getElementById('inspMicroSunSelect').value;
+            plant.waterNeeds = document.getElementById('inspWaterSelect').value;
+            plant.color = document.getElementById('inspColorInput').value;
+
+            document.getElementById('inspTitleHeader').innerText = plant.name;
+            document.getElementById('inspBotanicalHeader').innerText = plant.botanicalName || 'No botanical name specified';
+            document.getElementById('inspTypeBadge').innerText = plant.category;
+
+            saveState();
+            renderMapCanvas();
+        }
+
+        function addNoteToSelectedPlant() {
+            const plant = getSelectedPlant();
+            const input = document.getElementById('inspNewNoteInput');
+            const text = input.value.trim();
+
+            if (!plant || !text) return;
+
+            if (!plant.notes) plant.notes = [];
+
+            plant.notes.unshift({
+                id: 'note-' + Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                text: text
+            });
+
+            input.value = '';
+            saveState();
+            renderPlantNotes(plant);
+        }
+
+        function deleteNoteFromPlant(noteId) {
+            const plant = getSelectedPlant();
+            if (!plant) return;
+
+            plant.notes = plant.notes.filter(n => n.id !== noteId);
+            saveState();
+            renderPlantNotes(plant);
+        }
+
+        function renderPlantNotes(plant) {
+            const container = document.getElementById('inspNotesList');
+            container.innerHTML = '';
+
+            if (!plant.notes || plant.notes.length === 0) {
+                container.innerHTML = `<div class="text-[11px] text-slate-500 italic p-2 text-center">No care notes logged yet.</div>`;
+                return;
+            }
+
+            plant.notes.forEach(note => {
+                const item = document.createElement('div');
+                item.className = "bg-slate-900 border border-slate-800 p-2 rounded-lg text-xs space-y-1 relative group";
+                item.innerHTML = `
+                    <div class="flex items-center justify-between text-[10px] text-slate-400">
+                        <span class="font-semibold text-emerald-400"><i class="fa-regular fa-calendar-check mr-1"></i> ${note.date}</span>
+                        <button onclick="deleteNoteFromPlant('${note.id}')" class="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <p class="text-slate-200 leading-snug">${note.text}</p>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function deleteSelectedPlant() {
+            if (!appState.selectedPlantId) return;
+
+            appState.plants = appState.plants.filter(p => p.id !== appState.selectedPlantId);
+            appState.selectedPlantId = null;
+            saveState();
+            renderMapCanvas();
+            renderInspector();
+        }
+
+        function changeCanvasTexture(texture) {
+            appState.canvasBg = texture;
+            const viewport = document.getElementById('canvasViewport');
+            viewport.className = `flex-1 w-full h-full relative overflow-hidden flex items-center justify-center canvas-bg-${texture}`;
+            saveState();
+        }
+
+        function toggleSunOverlay() {
+            appState.showSunOverlay = document.getElementById('sunOverlayToggle').checked;
+            renderMapCanvas();
+        }
+
+        function clearCurrentZoneMap() {
+            const zone = getCurrentZone();
+            appState.plants = appState.plants.filter(p => p.zoneId !== appState.activeZoneId);
+            appState.selectedPlantId = null;
+            saveState();
+            renderMapCanvas();
+            renderInspector();
+        }
+
+        function resetZoom() {
+            renderMapCanvas();
+        }
+
+        /**
+         * View 2: Sun Tracker Hours Logic
+         */
+        function renderSunTrackerView() {
+            const zone = getCurrentZone();
+            if (!zone) return;
+
+            const hourGrid = document.getElementById('sunHourGrid');
+            hourGrid.innerHTML = '';
+
+            const hoursList = [
+                { h: 8, label: '8:00 AM' },
+                { h: 9, label: '9:00 AM' },
+                { h: 10, label: '10:00 AM' },
+                { h: 11, label: '11:00 AM' },
+                { h: 12, label: '12:00 PM' },
+                { h: 13, label: '1:00 PM' },
+                { h: 14, label: '2:00 PM' },
+                { h: 15, label: '3:00 PM' },
+                { h: 16, label: '4:00 PM' },
+                { h: 17, label: '5:00 PM' },
+                { h: 18, label: '6:00 PM' },
+                { h: 19, label: '7:00 PM' }
+            ];
+
+            const activeHours = zone.sunHours || [];
+
+            hoursList.forEach(item => {
+                const isSun = activeHours.includes(item.h);
+                const btn = document.createElement('button');
+                btn.onclick = () => toggleSunHour(item.h);
+                btn.className = `p-3 rounded-xl border flex flex-col items-center justify-center transition ${
+                    isSun 
+                    ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 font-bold shadow-lg shadow-amber-950/40' 
+                    : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                }`;
+                btn.innerHTML = `
+                    <i class="fa-solid ${isSun ? 'fa-sun text-amber-400 text-lg mb-1' : 'fa-cloud text-slate-600 text-base mb-1'}"></i>
+                    <span class="text-xs">${item.label}</span>
+                `;
+                hourGrid.appendChild(btn);
+            });
+
+            const totalHours = activeHours.length;
+            document.getElementById('sunHoursTotal').innerText = `${totalHours} Direct Sunlight Hours`;
+
+            let rating = 'Full Shade';
+            let bestPlants = 'Hostas, Ferns, Moss, Heuchera';
+
+            if (totalHours >= 6) {
+                rating = 'Full Sun';
+                bestPlants = 'Tomatoes, Peppers, Roses, Lavender, Fruit Trees';
+                zone.sunExposure = 'Full Sun';
+            } else if (totalHours >= 3) {
+                rating = 'Partial Shade';
+                bestPlants = 'Hydrangeas, Lettuce, Spinach, Blueberries, Camellias';
+                zone.sunExposure = 'Partial Shade';
+            } else {
+                zone.sunExposure = 'Full Shade';
+            }
+
+            document.getElementById('sunRatingText').innerText = rating;
+            document.getElementById('sunBestPlantsText').innerText = bestPlants;
+            document.getElementById('zoneNotesTextarea').value = zone.note || '';
+
+            saveState();
+            renderZoneTabs();
+        }
+
+        function toggleSunHour(hour) {
+            const zone = getCurrentZone();
+            if (!zone) return;
+
+            if (!zone.sunHours) zone.sunHours = [];
+
+            if (zone.sunHours.includes(hour)) {
+                zone.sunHours = zone.sunHours.filter(h => h !== hour);
+            } else {
+                zone.sunHours.push(hour);
+            }
+
+            renderSunTrackerView();
+        }
+
+        function switchZoneFromSunTab(zoneId) {
+            selectZone(zoneId);
+            renderSunTrackerView();
+        }
+
+        function updateZoneOrientation(val) {
+            const zone = getCurrentZone();
+            if (zone) {
+                zone.orientation = val;
+                saveState();
+            }
+        }
+
+        function saveZoneMicroclimateNote(val) {
+            const zone = getCurrentZone();
+            if (zone) {
+                zone.note = val;
+                saveState();
+            }
+        }
+
+        /**
+         * View 3: Master Plant Directory Render
+         */
+        function renderPlantIndexTable() {
+            const container = document.getElementById('plantDirectoryGrid');
+            container.innerHTML = '';
+
+            const searchTerm = document.getElementById('plantSearchInput').value.toLowerCase();
+            const filterZone = document.getElementById('plantZoneFilter').value;
+
+            let filtered = appState.plants.filter(p => {
+                const matchesSearch = p.name.toLowerCase().includes(searchTerm) || (p.botanicalName && p.botanicalName.toLowerCase().includes(searchTerm));
+                const matchesZone = filterZone === 'ALL' || p.zoneId === filterZone;
+                return matchesSearch && matchesZone;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full py-16 text-center text-slate-500">
+                        <i class="fa-solid fa-seedling text-4xl mb-2 opacity-40"></i>
+                        <p class="text-sm font-medium">No mapped items found matching your filter.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(plant => {
+                const zone = appState.zones.find(z => z.id === plant.zoneId);
+                const noteCount = plant.notes ? plant.notes.length : 0;
+                const microSun = plant.microSun || plant.sunNeeds || 'Full Sun';
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition flex flex-col";
+                card.innerHTML = `
+                    <div class="relative h-36 bg-slate-950">
+                        <img src="${plant.imageUrl || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+                        <span class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-800/60">
+                            <i class="fa-solid fa-location-dot mr-1"></i> ${zone ? zone.name : 'Unassigned'}
+                        </span>
+                    </div>
+
+                    <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+                        <div>
+                            <h3 class="font-bold text-white text-base leading-snug">${plant.name}</h3>
+                            <p class="text-xs italic text-slate-400">${plant.botanicalName || 'Botanical name not set'}</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-[11px]">
+                            <div class="bg-slate-950 border border-slate-800 p-2 rounded-xl text-amber-400">
+                                <i class="fa-solid fa-sun mr-1"></i> Micro: ${microSun}
+                            </div>
+                            <div class="bg-slate-950 border border-slate-800 p-2 rounded-xl text-cyan-400">
+                                <i class="fa-solid fa-up-right-and-down-left-from-center mr-1"></i> ${plant.width || 100}x${plant.height || 100}px
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800/80">
+                            <span><i class="fa-solid fa-clipboard-list mr-1 text-slate-500"></i> ${noteCount} Care Notes</span>
+                            <button onclick="navigateToPlantInMap('${plant.zoneId}', '${plant.id}')" class="text-xs text-emerald-400 font-semibold hover:underline">
+                                View in Map <i class="fa-solid fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function navigateToPlantInMap(zoneId, plantId) {
+            selectZone(zoneId);
+            selectPlant(plantId);
+            switchView('map');
+        }
+
+        /**
+         * JSON Import & Export Utilities
+         */
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `gardenscape_pro_map_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importDataTrigger() {
+            document.getElementById('importFileInput').click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported.zones && imported.plants) {
+                        appState = imported;
+                        saveState();
+                        renderZoneTabs();
+                        renderMapCanvas();
+                        renderSunTrackerView();
+                        updateCompassAndSolarUI();
+                    }
+                } catch(err) {
+                    console.error('Error importing data', err);
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
