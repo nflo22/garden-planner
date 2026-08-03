@@ -480,10 +480,17 @@
                     <!-- Inspector Form Content -->
                     <div id="inspectorForm" class="hidden space-y-4">
                         
-                        <!-- Header Preview Card -->
+                        <!-- Header Preview Card with Upload Button -->
                         <div class="relative group rounded-xl overflow-hidden border border-slate-800 bg-slate-900">
-                            <img id="inspImagePreview" src="https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60" alt="Plant Image" class="w-full h-32 object-cover" onerror="this.src='https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'">
-                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-end p-3">
+                            <img id="inspImagePreview" src="https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60" alt="Plant Image" class="w-full h-36 object-cover" onerror="this.src='https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'">
+                            
+                            <!-- Image Upload Overlay Button -->
+                            <label for="plantPhotoUploadInput" class="absolute top-2 right-2 bg-slate-950/80 hover:bg-slate-950 text-white p-2 rounded-lg border border-slate-700 cursor-pointer shadow-md transition flex items-center gap-1.5 text-xs">
+                                <i class="fa-solid fa-camera text-emerald-400"></i> Upload Photo
+                            </label>
+                            <input type="file" id="plantPhotoUploadInput" accept="image/*" class="hidden" onchange="handlePlantPhotoUpload(event)">
+
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-end p-3 pointer-events-none">
                                 <div id="inspTypeBadge" class="self-start text-[10px] font-bold uppercase tracking-wide bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-full mb-1">
                                     Tree
                                 </div>
@@ -780,19 +787,17 @@
          */
         const SUPABASE_URL = 'https://djyswybfnukmkqmcjrfw.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqeXN3eWJmbnVrbWtxbWNqcmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3MTY3MTcsImV4cCI6MjEwMTI5MjcxN30.DZaYzqPvpgi5RHkfHXHGmGhWATxPHDP5qSpWJPry1QE';
-        // Renamed to `sb` (not `supabase`) so it doesn't collide with the
-        // `window.supabase` global that the CDN script above provides.
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const DB_TABLE = 'gardenscape_states';
 
-        let currentUser = null;      // Supabase auth user object once signed in
-        let appInitialized = false;  // guards against re-running setup on repeated auth events
+        let currentUser = null;      
+        let appInitialized = false;  
         let saveDebounceTimer = null;
 
         let appState = {
             activeZoneId: 'zone-front',
-            northAngle: 0, // 0 = Top, 90 = Right, 180 = Bottom, 270 = Left
-            solarTime: 13, // 1:00 PM solar simulation
+            northAngle: 0, 
+            solarTime: 13, 
             showShadows: true,
             zones: [
                 { id: 'zone-front', name: 'Front Yard', sunExposure: 'Full Sun', sunHours: [8, 9, 10, 11, 12, 13, 14], orientation: 'North Top', note: 'Front porch slope with high morning sun exposure.' },
@@ -864,7 +869,6 @@
             showSunOverlay: false
         };
 
-        // Preset Library for Quick Adding
         const PLANT_PRESETS = [
             { name: 'Red Oak Tree', category: 'tree', sun: 'Full Sun', water: 'Moderate', color: '#166534', w: 160, h: 160, img: 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?w=500&auto=format&fit=crop&q=60' },
             { name: 'Hydrangea Bush', category: 'shrub', sun: 'Partial Shade', water: 'High', color: '#3b82f6', w: 90, h: 90, img: 'https://images.unsplash.com/photo-1508610048659-a06b669e3321?w=500&auto=format&fit=crop&q=60' },
@@ -873,7 +877,6 @@
             { name: 'Patio Paver Deck', category: 'patio', sun: 'Full Sun', water: 'Low', color: '#64748b', w: 200, h: 140, img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=500&auto=format&fit=crop&q=60' }
         ];
 
-        // Interaction State Variables
         let isDragging = false;
         let isResizing = false;
         let activeHandle = null;
@@ -881,17 +884,11 @@
         let dragStartPos = { x: 0, y: 0 };
         let initialDimensions = { x: 0, y: 0, width: 0, height: 0 };
 
-        // Initialize App
         window.onload = function() {
             initAuth();
         };
 
-        /**
-         * Authentication
-         */
         async function initAuth() {
-            // Fires on sign-in, sign-out, token refresh, and once on page load
-            // with the initial session (if any).
             sb.auth.onAuthStateChange((event, session) => {
                 if (session && session.user) {
                     handleSignedIn(session.user);
@@ -917,8 +914,6 @@
             document.getElementById('appRoot').classList.remove('hidden');
             document.getElementById('userEmailLabel').innerText = user.email;
 
-            // onAuthStateChange can fire more than once (e.g. INITIAL_SESSION
-            // then a token refresh) - only run app setup a single time.
             if (appInitialized) return;
             appInitialized = true;
 
@@ -953,7 +948,6 @@
             if (error) {
                 setAuthMessage(error.message, 'error');
             }
-            // On success, the onAuthStateChange listener above takes it from here.
         }
 
         async function handleSignupSubmit() {
@@ -980,17 +974,12 @@
             }
 
             if (!data.session) {
-                // Email confirmation is required before this account can sign in.
                 setAuthMessage('Account created! Check your email to confirm, then sign in.', 'success');
             }
-            // If data.session exists, confirmation is off and onAuthStateChange
-            // will sign the user straight into the app.
         }
 
         async function handleSignOut() {
             await sb.auth.signOut();
-            // Full reload keeps things simple and guarantees a clean slate -
-            // no leftover drag state, duplicate canvas listeners, etc.
             location.reload();
         }
 
@@ -1016,16 +1005,9 @@
             submitBtn.innerText = loading ? 'Please wait...' : 'Sign In';
         }
 
-        /**
-         * Cloud Sync (Supabase) - replaces the old localStorage read/write.
-         * The entire appState blob is stored as one JSONB row per user,
-         * keyed by their auth user id.
-         */
         function saveState() {
             setSyncStatus('saving');
             clearTimeout(saveDebounceTimer);
-            // Debounce so rapid-fire edits (typing, dragging) collapse into
-            // one network write instead of one per keystroke/step.
             saveDebounceTimer = setTimeout(syncStateToSupabase, 600);
         }
 
@@ -1061,10 +1043,6 @@
                 if (data && data.state) {
                     appState = { ...appState, ...data.state };
                 }
-                // If no row exists yet, this is a brand new account - the
-                // default sample appState stays in memory and will be
-                // written to Supabase automatically the first time the
-                // user makes any edit (same as the old localStorage behavior).
                 setSyncStatus('saved');
             } catch (err) {
                 console.error('Failed to load state from Supabase', err);
@@ -1087,9 +1065,6 @@
             }
         }
 
-        /**
-         * Navigation & View Switching Logic
-         */
         function switchView(viewName) {
             document.getElementById('mapView').classList.add('hidden');
             document.getElementById('sunView').classList.add('hidden');
@@ -1114,9 +1089,6 @@
             }
         }
 
-        /**
-         * Zone Management Functions
-         */
         function renderZoneTabs() {
             const container = document.getElementById('zoneTabsList');
             container.innerHTML = '';
@@ -1202,9 +1174,6 @@
             }
         }
 
-        /**
-         * Compass North Angle & Dynamic Solar Shadow Calculations
-         */
         function updateNorthDirection(angleDeg) {
             appState.northAngle = parseInt(angleDeg);
             saveState();
@@ -1254,9 +1223,6 @@
             }
         }
 
-        /**
-         * Canvas Rendering Engine with Dynamic Cast Shadows & Micro-Zone Overlays
-         */
         function renderMapCanvas() {
             const svgGroup = document.getElementById('mapElementsGroup');
             const shadowsGroup = document.getElementById('shadowsGroup');
@@ -1289,7 +1255,6 @@
             const shadowDx = -Math.sin(effectiveSunAngleRad) * 40 * shadowLengthMultiplier;
             const shadowDy = Math.cos(effectiveSunAngleRad) * 40 * shadowLengthMultiplier;
 
-            // Render Zone Base Sun Overlay if enabled
             if (appState.showSunOverlay && activeZone) {
                 let sunClass = 'sun-overlay-full';
                 if (activeZone.sunExposure === 'Partial Shade') sunClass = 'sun-overlay-partial';
@@ -1307,7 +1272,6 @@
                 sunOverlayGroup.appendChild(rect);
             }
 
-            // Render Elements and Cast Dynamic Shadows
             currentZonePlants.forEach(plant => {
                 const isSelected = plant.id === appState.selectedPlantId;
                 const width = plant.width || plant.size || 100;
@@ -1315,7 +1279,6 @@
                 const cx = plant.x + width / 2;
                 const cy = plant.y + height / 2;
 
-                // 1. Dynamic Cast Shadows
                 if (appState.showShadows) {
                     const shadowG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     shadowG.setAttribute('fill', 'rgba(15, 23, 42, 0.45)');
@@ -1348,7 +1311,6 @@
                     shadowsGroup.appendChild(shadowG);
                 }
 
-                // 2. Render Main Element Shape
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 g.setAttribute('class', `plant-element ${isSelected ? 'selected' : ''}`);
                 g.setAttribute('data-id', plant.id);
@@ -1380,7 +1342,6 @@
                     ellipse.setAttribute('filter', 'url(#shadow)');
                     g.appendChild(ellipse);
 
-                    // Category Icon (Using Font Awesome 6 Free family name)
                     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     icon.setAttribute('x', cx);
                     icon.setAttribute('y', cy);
@@ -1391,7 +1352,7 @@
                     icon.setAttribute('font-family', 'Font Awesome 6 Free');
                     icon.setAttribute('font-weight', '900');
                     
-                    let iconChar = '\uf1bb'; // tree
+                    let iconChar = '\uf1bb';
                     if (plant.category === 'shrub') iconChar = '\uf801';
                     if (plant.category === 'flower') iconChar = '\uf4d8';
                     if (plant.category === 'vegetable') iconChar = '\uf787';
@@ -1400,7 +1361,6 @@
                     g.appendChild(icon);
                 }
 
-                // Micro-Sun Exposure Visual Badge Indicator
                 const sunBadgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 const badgeX = plant.x + width - 10;
                 const badgeY = plant.y + 10;
@@ -1434,7 +1394,6 @@
 
                 g.appendChild(sunBadgeG);
 
-                // Plant Common Name Label
                 const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 label.setAttribute('x', cx);
                 label.setAttribute('y', plant.y + height + 16);
@@ -1450,7 +1409,6 @@
 
                 svgGroup.appendChild(g);
 
-                // 3. Selection Bounding Box & Interactive Corner Resize Handles
                 if (isSelected) {
                     const selG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
@@ -1488,9 +1446,6 @@
             });
         }
 
-        /**
-         * SVG Drag & Click-to-Resize Event Listeners
-         */
         function setupSVGCanvasEvents() {
             const svg = document.getElementById('gardenSVG');
 
@@ -1498,7 +1453,6 @@
             svg.addEventListener('mousemove', handlePointerMove);
             window.addEventListener('mouseup', handlePointerUp);
 
-            // Touch events support for mobile devices
             svg.addEventListener('touchstart', (e) => {
                 if (e.touches.length === 1) handlePointerDown(e);
             }, { passive: false });
@@ -1617,9 +1571,6 @@
             return pt.matrixTransform(svg.getScreenCTM().inverse());
         }
 
-        /**
-         * Adding Shapes and Preset Plants
-         */
         function addNewPlantShape(category) {
             const currentZone = getCurrentZone();
             const defaultDim = category === 'tree' ? 140 : category === 'structure' ? 200 : category === 'planter' ? 150 : 90;
@@ -1697,9 +1648,6 @@
             renderMapCanvas();
         }
 
-        /**
-         * Inspector Panel Logic
-         */
         function selectPlant(plantId) {
             appState.selectedPlantId = plantId;
             renderInspector();
@@ -1750,6 +1698,24 @@
             renderPlantInfoPanel(plant);
         }
 
+        /**
+         * Handle Photo Upload for Plants
+         */
+        function handlePlantPhotoUpload(event) {
+            const file = event.target.files[0];
+            const plant = getSelectedPlant();
+
+            if (!file || !plant) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                plant.imageUrl = e.target.result;
+                renderInspectorValues();
+                saveState();
+            };
+            reader.readAsDataURL(file);
+        }
+
         function updateSelectedPlantFromInput() {
             const plant = getSelectedPlant();
             if (!plant) return;
@@ -1773,15 +1739,8 @@
             lookupPlantInfo(false);
         }
 
-        /**
-         * Automatic Plant Info Lookup (Wikipedia)
-         * Searches Wikipedia for whatever name/botanical name is entered and
-         * caches the result on the plant itself, so it syncs to Supabase
-         * along with the rest of the plant's data and doesn't get re-fetched
-         * every time the plant is simply re-selected.
-         */
         let plantLookupTimer = null;
-        let plantLookupInFlight = {}; // plantId -> true while a search is running (not persisted)
+        let plantLookupInFlight = {}; 
 
         function lookupPlantInfo(forceRefresh) {
             const plant = getSelectedPlant();
@@ -1793,7 +1752,6 @@
                 return;
             }
 
-            // Already have a cached result for this exact name - just show it.
             if (!forceRefresh && plant.wikiInfo && typeof plant.wikiInfo === 'object' && plant.wikiInfo.query === query) {
                 renderPlantInfoPanel(plant);
                 return;
@@ -1820,7 +1778,7 @@
             delete plantLookupInFlight[plantId];
 
             const plant = appState.plants.find(p => p.id === plantId);
-            if (!plant) return; // plant was deleted or the zone was cleared mid-search
+            if (!plant) return;
 
             plant.wikiInfo = result;
             saveState();
@@ -2002,9 +1960,6 @@
             renderMapCanvas();
         }
 
-        /**
-         * View 2: Sun Tracker Hours Logic
-         */
         function renderSunTrackerView() {
             const zone = getCurrentZone();
             if (!zone) return;
@@ -2027,55 +1982,31 @@
                 { h: 19, label: '7:00 PM' }
             ];
 
-            const activeHours = zone.sunHours || [];
+            const sunHours = zone.sunHours || [];
 
             hoursList.forEach(item => {
-                const isSun = activeHours.includes(item.h);
+                const isActive = sunHours.includes(item.h);
                 const btn = document.createElement('button');
-                btn.onclick = () => toggleSunHour(item.h);
-                btn.className = `p-3 rounded-xl border flex flex-col items-center justify-center transition ${
-                    isSun 
-                    ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 font-bold shadow-lg shadow-amber-950/40' 
-                    : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                btn.onclick = () => toggleZoneSunHour(zone.id, item.h);
+                btn.className = `p-3 rounded-xl border text-xs font-semibold flex flex-col items-center justify-center transition ${
+                    isActive 
+                    ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-md shadow-amber-950/40' 
+                    : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'
                 }`;
                 btn.innerHTML = `
-                    <i class="fa-solid ${isSun ? 'fa-sun text-amber-400 text-lg mb-1' : 'fa-cloud text-slate-600 text-base mb-1'}"></i>
-                    <span class="text-xs">${item.label}</span>
+                    <i class="fa-solid fa-sun ${isActive ? 'text-amber-400' : 'text-slate-700'} mb-1"></i>
+                    <span>${item.label}</span>
                 `;
                 hourGrid.appendChild(btn);
             });
 
-            const totalHours = activeHours.length;
-            document.getElementById('sunHoursTotal').innerText = `${totalHours} Direct Sunlight Hours`;
-
-            let rating = 'Full Shade';
-            let bestPlants = 'Hostas, Ferns, Moss, Heuchera';
-
-            if (totalHours >= 6) {
-                rating = 'Full Sun';
-                bestPlants = 'Tomatoes, Peppers, Roses, Lavender, Fruit Trees';
-                zone.sunExposure = 'Full Sun';
-            } else if (totalHours >= 3) {
-                rating = 'Partial Shade';
-                bestPlants = 'Hydrangeas, Lettuce, Spinach, Blueberries, Camellias';
-                zone.sunExposure = 'Partial Shade';
-            } else {
-                zone.sunExposure = 'Full Shade';
-            }
-
-            document.getElementById('sunRatingText').innerText = rating;
-            document.getElementById('sunBestPlantsText').innerText = bestPlants;
+            document.getElementById('sunRatingText').innerText = zone.sunExposure;
+            document.getElementById('sunHoursTotal').innerText = `${sunHours.length} Solar Hours / Day`;
             document.getElementById('zoneNotesTextarea').value = zone.note || '';
-            
-            const orientationSelect = document.getElementById('zoneOrientationSelect');
-            if (orientationSelect) orientationSelect.value = zone.orientation || 'North Top';
-
-            saveState();
-            renderZoneTabs();
         }
 
-        function toggleSunHour(hour) {
-            const zone = getCurrentZone();
+        function toggleZoneSunHour(zoneId, hour) {
+            const zone = appState.zones.find(z => z.id === zoneId);
             if (!zone) return;
 
             if (!zone.sunHours) zone.sunHours = [];
@@ -2086,113 +2017,95 @@
                 zone.sunHours.push(hour);
             }
 
+            const count = zone.sunHours.length;
+            if (count >= 6) zone.sunExposure = 'Full Sun';
+            else if (count >= 3) zone.sunExposure = 'Partial Shade';
+            else zone.sunExposure = 'Full Shade';
+
+            saveState();
             renderSunTrackerView();
+            renderZoneTabs();
         }
 
-        function switchZoneFromSunTab(zoneId) {
-            selectZone(zoneId);
-            renderSunTrackerView();
-        }
-
-        function updateZoneOrientation(val) {
+        function saveZoneMicroclimateNote(text) {
             const zone = getCurrentZone();
-            if (zone) {
-                zone.orientation = val;
-                saveState();
-            }
+            if (!zone) return;
+            zone.note = text;
+            saveState();
         }
 
-        function saveZoneMicroclimateNote(val) {
-            const zone = getCurrentZone();
-            if (zone) {
-                zone.note = val;
-                saveState();
-            }
-        }
-
-        /**
-         * View 3: Master Plant Directory Render
-         */
         function renderPlantIndexTable() {
-            const container = document.getElementById('plantDirectoryGrid');
-            container.innerHTML = '';
-
-            const searchTerm = document.getElementById('plantSearchInput').value.toLowerCase();
+            const grid = document.getElementById('plantDirectoryGrid');
+            const search = (document.getElementById('plantSearchInput').value || '').toLowerCase();
             const filterZone = document.getElementById('plantZoneFilter').value;
 
-            let filtered = appState.plants.filter(p => {
-                const matchesSearch = p.name.toLowerCase().includes(searchTerm) || (p.botanicalName && p.botanicalName.toLowerCase().includes(searchTerm));
+            grid.innerHTML = '';
+
+            const filtered = appState.plants.filter(p => {
+                const matchesSearch = p.name.toLowerCase().includes(search) || (p.botanicalName && p.botanicalName.toLowerCase().includes(search));
                 const matchesZone = filterZone === 'ALL' || p.zoneId === filterZone;
                 return matchesSearch && matchesZone;
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full py-16 text-center text-slate-500">
-                        <i class="fa-solid fa-seedling text-4xl mb-2 opacity-40"></i>
-                        <p class="text-sm font-medium">No mapped items found matching your filter.</p>
-                    </div>
-                `;
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 text-xs">No plant elements found matching filter.</div>`;
                 return;
             }
 
             filtered.forEach(plant => {
                 const zone = appState.zones.find(z => z.id === plant.zoneId);
-                const noteCount = plant.notes ? plant.notes.length : 0;
-                const microSun = plant.microSun || plant.sunNeeds || 'Full Sun';
-
                 const card = document.createElement('div');
-                card.className = "bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition flex flex-col";
+                card.className = "bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between";
                 card.innerHTML = `
-                    <div class="relative h-36 bg-slate-950">
-                        <img src="${plant.imageUrl || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'">
-                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
-                        <span class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-800/60">
-                            <i class="fa-solid fa-location-dot mr-1"></i> ${zone ? zone.name : 'Unassigned'}
-                        </span>
+                    <div>
+                        <div class="h-36 relative overflow-hidden border-b border-slate-800">
+                            <img src="${plant.imageUrl || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'">
+                            <span class="absolute top-3 left-3 text-[10px] font-bold bg-slate-950/80 text-emerald-400 border border-slate-800 px-2 py-0.5 rounded-md backdrop-blur-md">
+                                ${zone ? zone.name : 'Unassigned'}
+                            </span>
+                        </div>
+                        <div class="p-4 space-y-2">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <h3 class="font-bold text-sm text-white">${plant.name}</h3>
+                                    <p class="text-xs italic text-slate-400">${plant.botanicalName || 'No botanical name'}</p>
+                                </div>
+                                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">${plant.category}</span>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-slate-400 pt-2 border-t border-slate-800/60">
+                                <span><i class="fa-solid fa-sun text-amber-400 mr-1"></i> ${plant.microSun || plant.sunNeeds || 'Full Sun'}</span>
+                                <span><i class="fa-solid fa-droplet text-cyan-400 mr-1"></i> ${plant.waterNeeds || 'Moderate'}</span>
+                            </div>
+                        </div>
                     </div>
-
-                    <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
-                        <div>
-                            <h3 class="font-bold text-white text-base leading-snug">${plant.name}</h3>
-                            <p class="text-xs italic text-slate-400">${plant.botanicalName || 'Botanical name not set'}</p>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-2 text-[11px]">
-                            <div class="bg-slate-950 border border-slate-800 p-2 rounded-xl text-amber-400">
-                                <i class="fa-solid fa-sun mr-1"></i> Micro: ${microSun}
-                            </div>
-                            <div class="bg-slate-950 border border-slate-800 p-2 rounded-xl text-cyan-400">
-                                <i class="fa-solid fa-up-right-and-down-left-from-center mr-1"></i> ${plant.width || 100}x${plant.height || 100}px
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800/80">
-                            <span><i class="fa-solid fa-clipboard-list mr-1 text-slate-500"></i> ${noteCount} Care Notes</span>
-                            <button onclick="navigateToPlantInMap('${plant.zoneId}', '${plant.id}')" class="text-xs text-emerald-400 font-semibold hover:underline">
-                                View in Map <i class="fa-solid fa-arrow-right ml-1"></i>
-                            </button>
-                        </div>
+                    <div class="p-4 bg-slate-950/40 border-t border-slate-800 flex items-center justify-between">
+                        <span class="text-[11px] text-slate-500">${plant.notes ? plant.notes.length : 0} care log notes</span>
+                        <button onclick="selectPlantFromIndex('${plant.id}')" class="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+                            Locate on Map <i class="fa-solid fa-arrow-right"></i>
+                        </button>
                     </div>
                 `;
-                container.appendChild(card);
+                grid.appendChild(card);
             });
         }
 
-        function navigateToPlantInMap(zoneId, plantId) {
-            selectZone(zoneId);
-            selectPlant(plantId);
+        function selectPlantFromIndex(plantId) {
+            const plant = appState.plants.find(p => p.id === plantId);
+            if (!plant) return;
+
+            appState.activeZoneId = plant.zoneId;
+            appState.selectedPlantId = plant.id;
             switchView('map');
+            renderZoneTabs();
+            renderMapCanvas();
+            renderInspector();
         }
 
-        /**
-         * JSON Import & Export Utilities
-         */
         function exportData() {
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `gardenscape_pro_map_${new Date().toISOString().split('T')[0]}.json`);
+            downloadAnchor.setAttribute("download", `gardenscape_layout_${Date.now()}.json`);
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
@@ -2209,17 +2122,17 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const imported = JSON.parse(e.target.result);
-                    if (imported.zones && imported.plants) {
-                        appState = imported;
+                    const importedState = JSON.parse(e.target.result);
+                    if (importedState && importedState.zones && importedState.plants) {
+                        appState = importedState;
                         saveState();
                         renderZoneTabs();
                         renderMapCanvas();
-                        renderSunTrackerView();
-                        updateCompassAndSolarUI();
+                        renderInspector();
+                        alert('Yard map layout restored successfully!');
                     }
-                } catch(err) {
-                    console.error('Error importing data', err);
+                } catch (err) {
+                    alert('Invalid layout file format.');
                 }
             };
             reader.readAsText(file);
