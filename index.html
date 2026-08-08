@@ -6,6 +6,7 @@
     <title>Dylan's ManScape</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -106,6 +107,43 @@
 </head>
 <body class="h-screen flex flex-col overflow-hidden text-slate-800 select-none bg-stone-50">
 
+    <!-- Supabase Authentication Gate -->
+    <div id="authOverlay" class="fixed inset-0 z-[100] bg-stone-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl p-7">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="bg-gradient-to-tr from-emerald-600 to-green-500 p-3 rounded-xl text-white shadow-md">
+                    <i class="fa-solid fa-tree text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg text-slate-900">Dylan's ManScape</h1>
+                    <p class="text-xs text-slate-500">Sign in to sync your garden across devices</p>
+                </div>
+            </div>
+
+            <div id="authError" class="hidden mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"></div>
+            <div id="authMessage" class="hidden mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700"></div>
+
+            <form id="authForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+                    <input id="authEmail" type="email" autocomplete="email" required class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500" placeholder="you@example.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                    <input id="authPassword" type="password" autocomplete="current-password" required minlength="6" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500" placeholder="At least 6 characters">
+                </div>
+                <button id="signInButton" type="submit" class="w-full px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-sm transition">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="mt-5 pt-5 border-t border-slate-200 text-center">
+                <p class="text-xs text-slate-500 mb-2">First time using the app?</p>
+                <button id="signUpButton" type="button" class="text-xs font-bold text-emerald-700 hover:text-emerald-800">Create an account</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Top Navigation Header -->
     <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-4 z-20 shadow-sm">
         <div class="flex items-center space-x-3">
@@ -148,6 +186,14 @@
             </div>
 
             <div class="h-6 w-px bg-slate-200 mx-1"></div>
+
+            <div id="syncStatus" class="hidden sm:flex items-center gap-1.5 px-2 text-[10px] font-semibold text-slate-500 whitespace-nowrap" title="Supabase sync status">
+                <span id="syncStatusDot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                <span id="syncStatusText">Not signed in</span>
+            </div>
+            <button onclick="signOut()" title="Sign out" class="p-2 text-slate-600 hover:text-slate-900 bg-slate-100 border border-slate-200 hover:bg-slate-200 rounded-xl transition">
+                <i class="fa-solid fa-right-from-bracket text-xs"></i>
+            </button>
 
             <button onclick="exportData()" title="Export JSON" class="p-2 text-slate-600 hover:text-slate-900 bg-slate-100 border border-slate-200 hover:bg-slate-200 rounded-xl transition">
                 <i class="fa-solid fa-download text-xs"></i>
@@ -908,6 +954,15 @@
          * GardenScape App State and Storage Logic
          */
         const STORAGE_KEY = 'gardenscape_app_data_v2';
+        const SUPABASE_URL = 'https://djyswybfnukmkqmcjrfw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqeXN3eWJmbnVrbWtxbWNqcmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3MTY3MTcsImV4cCI6MjEwMTI5MjcxN30.DZaYzqPvpgi5RHkfHXHGmGhWATxPHDP5qSpWJPry1QE';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentUser = null;
+        let isHydrating = false;
+        let saveTimer = null;
+        let appInitialized = false;
+        let canvasEventsInitialized = false;
 
         let zoomScale = 1.0;
         let panX = 0;
@@ -1049,24 +1104,24 @@
         let initialDimensions = { x: 0, y: 0, width: 0, height: 0 };
 
         // Initialize App
-        window.onload = function() {
-            loadSavedState();
-            renderZoneTabs();
-            renderMapCanvas();
-            renderSunTrackerView();
-            setupSVGCanvasEvents();
-            updateCompassAndSolarUI();
-            
-            // Populate manual frost date inputs if stored
-            if (appState.manualLastFrost) {
-                document.getElementById('manualLastFrostInput').value = appState.manualLastFrost;
+        window.onload = async function() {
+            setupAuthUI();
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session?.user) {
+                await initializeAuthenticatedApp(session.user);
+            } else {
+                showAuthOverlay();
             }
-            if (appState.manualFirstFrost) {
-                document.getElementById('manualFirstFrostInput').value = appState.manualFirstFrost;
-            }
-            
-            updateCalendarFrostDates();
-            switchView(appState.activeView || 'map');
+
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_OUT') {
+                    currentUser = null;
+                    appInitialized = false;
+                    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+                    showAuthOverlay();
+                    setSyncStatus('Not signed in', 'offline');
+                }
+            });
         };
 
         function zoomIn() {
@@ -1144,19 +1199,216 @@
             reader.readAsDataURL(file);
         }
 
-        function saveState() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        function getUserStorageKey() {
+            return currentUser ? `${STORAGE_KEY}:${currentUser.id}` : STORAGE_KEY;
         }
 
-        function loadSavedState() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
+        function saveState() {
+            const serialized = JSON.stringify(appState);
+            localStorage.setItem(getUserStorageKey(), serialized);
+
+            if (!currentUser || isHydrating || !appInitialized) return;
+
+            setSyncStatus('Saving…', 'saving');
+            if (saveTimer) clearTimeout(saveTimer);
+            saveTimer = setTimeout(async () => {
                 try {
-                    appState = { ...appState, ...JSON.parse(saved) };
+                    const { error } = await supabaseClient
+                        .from('app_state')
+                        .upsert({
+                            user_id: currentUser.id,
+                            data: appState,
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'user_id' });
+
+                    if (error) throw error;
+                    setSyncStatus('Saved', 'saved');
+                } catch (error) {
+                    console.error('Supabase save failed:', error);
+                    setSyncStatus('Offline / retrying', 'error');
+                }
+            }, 500);
+        }
+
+        async function loadSavedState() {
+            const localKeys = [getUserStorageKey(), STORAGE_KEY];
+            let localState = null;
+
+            for (const key of localKeys) {
+                const saved = localStorage.getItem(key);
+                if (!saved) continue;
+                try {
+                    localState = JSON.parse(saved);
+                    break;
                 } catch(e) {
-                    console.error("Failed to parse saved state", e);
+                    console.error('Failed to parse local saved state', e);
                 }
             }
+
+            if (!currentUser) {
+                if (localState) appState = { ...appState, ...localState };
+                return;
+            }
+
+            setSyncStatus('Loading…', 'loading');
+            const { data: remoteRow, error } = await supabaseClient
+                .from('app_state')
+                .select('data, updated_at')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+
+            if (error) throw error;
+
+            if (remoteRow?.data) {
+                // Supabase is the source of truth when cloud data exists.
+                appState = { ...appState, ...remoteRow.data };
+                localStorage.setItem(getUserStorageKey(), JSON.stringify(appState));
+                setSyncStatus('Synced', 'saved');
+            } else {
+                // First login: migrate an existing local garden, if one exists.
+                if (localState) appState = { ...appState, ...localState };
+                const { error: insertError } = await supabaseClient
+                    .from('app_state')
+                    .upsert({
+                        user_id: currentUser.id,
+                        data: appState,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+                if (insertError) throw insertError;
+                localStorage.setItem(getUserStorageKey(), JSON.stringify(appState));
+                setSyncStatus('Synced', 'saved');
+            }
+        }
+
+        async function initializeAuthenticatedApp(user) {
+            currentUser = user;
+            hideAuthOverlay();
+            isHydrating = true;
+            try {
+                await loadSavedState();
+                renderZoneTabs();
+                renderMapCanvas();
+                renderSunTrackerView();
+                if (!canvasEventsInitialized) {
+                    setupSVGCanvasEvents();
+                    canvasEventsInitialized = true;
+                }
+                updateCompassAndSolarUI();
+
+                if (appState.manualLastFrost) {
+                    document.getElementById('manualLastFrostInput').value = appState.manualLastFrost;
+                }
+                if (appState.manualFirstFrost) {
+                    document.getElementById('manualFirstFrostInput').value = appState.manualFirstFrost;
+                }
+
+                updateCalendarFrostDates();
+                switchView(appState.activeView || 'map');
+                appInitialized = true;
+                setSyncStatus('Synced', 'saved');
+            } catch (error) {
+                console.error('Could not initialize garden:', error);
+                setSyncStatus('Sync error', 'error');
+                showAuthError('Your account was recognized, but the garden could not be loaded. Make sure the Supabase app_state table and policies have been created.');
+                showAuthOverlay();
+            } finally {
+                isHydrating = false;
+            }
+        }
+
+        function setSyncStatus(text, state) {
+            const wrapper = document.getElementById('syncStatus');
+            const label = document.getElementById('syncStatusText');
+            const dot = document.getElementById('syncStatusDot');
+            if (!wrapper || !label || !dot) return;
+            wrapper.classList.remove('hidden');
+            label.textContent = text;
+            dot.className = 'w-2 h-2 rounded-full';
+            if (state === 'saved') dot.classList.add('bg-emerald-500');
+            else if (state === 'saving' || state === 'loading') dot.classList.add('bg-amber-500');
+            else if (state === 'error') dot.classList.add('bg-red-500');
+            else dot.classList.add('bg-slate-300');
+        }
+
+        function showAuthOverlay() {
+            document.getElementById('authOverlay')?.classList.remove('hidden');
+        }
+
+        function hideAuthOverlay() {
+            document.getElementById('authOverlay')?.classList.add('hidden');
+        }
+
+        function showAuthError(message) {
+            const el = document.getElementById('authError');
+            if (!el) return;
+            el.textContent = message;
+            el.classList.remove('hidden');
+            document.getElementById('authMessage')?.classList.add('hidden');
+        }
+
+        function showAuthMessage(message) {
+            const el = document.getElementById('authMessage');
+            if (!el) return;
+            el.textContent = message;
+            el.classList.remove('hidden');
+            document.getElementById('authError')?.classList.add('hidden');
+        }
+
+        function setupAuthUI() {
+            const form = document.getElementById('authForm');
+            const signUp = document.getElementById('signUpButton');
+            form?.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const email = document.getElementById('authEmail').value.trim();
+                const password = document.getElementById('authPassword').value;
+                const button = document.getElementById('signInButton');
+                button.disabled = true;
+                button.textContent = 'Signing in…';
+                try {
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    if (data.user) await initializeAuthenticatedApp(data.user);
+                } catch (error) {
+                    showAuthError(error.message || 'Unable to sign in.');
+                } finally {
+                    button.disabled = false;
+                    button.textContent = 'Sign In';
+                }
+            });
+
+            signUp?.addEventListener('click', async () => {
+                const email = document.getElementById('authEmail').value.trim();
+                const password = document.getElementById('authPassword').value;
+                if (!email || password.length < 6) {
+                    showAuthError('Enter an email and a password of at least 6 characters first.');
+                    return;
+                }
+                signUp.disabled = true;
+                signUp.textContent = 'Creating account…';
+                try {
+                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) throw error;
+                    if (data.session && data.user) {
+                        await initializeAuthenticatedApp(data.user);
+                    } else {
+                        showAuthMessage('Account created. Check your email for the confirmation link, then return here to sign in.');
+                    }
+                } catch (error) {
+                    showAuthError(error.message || 'Unable to create the account.');
+                } finally {
+                    signUp.disabled = false;
+                    signUp.textContent = 'Create an account';
+                }
+            });
+        }
+
+        async function signOut() {
+            if (!currentUser) return;
+            if (saveTimer) {
+                clearTimeout(saveTimer);
+                saveTimer = null;
+            }
+            await supabaseClient.auth.signOut();
         }
 
         function switchView(viewName) {
