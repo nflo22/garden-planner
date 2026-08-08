@@ -1162,6 +1162,8 @@
                     document.getElementById('inspImagePreview').src = dataUrl;
                     saveState();
                     renderInspector();
+                    renderMapCanvas();
+                    applyTableFiltersAndSort();
                 }
             };
             reader.readAsDataURL(file);
@@ -1897,34 +1899,72 @@
                     rect.setAttribute('filter', 'url(#shadow)');
                     g.appendChild(rect);
                 } else {
-                    const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-                    ellipse.setAttribute('cx', cx);
-                    ellipse.setAttribute('cy', cy);
-                    ellipse.setAttribute('rx', width / 2);
-                    ellipse.setAttribute('ry', height / 2);
-                    ellipse.setAttribute('fill', plant.color || '#22c55e');
-                    ellipse.setAttribute('fill-opacity', '0.9');
-                    ellipse.setAttribute('stroke', isSelected ? '#2563eb' : 'rgba(255,255,255,0.6)');
-                    ellipse.setAttribute('stroke-width', isSelected ? '3' : '2');
-                    ellipse.setAttribute('filter', 'url(#shadow)');
-                    g.appendChild(ellipse);
+                    if (plant.imageUrl) {
+                        const clipId = 'clip-' + plant.id;
+                        let clipPath = document.getElementById(clipId);
+                        if (!clipPath) {
+                            clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+                            clipPath.setAttribute('id', clipId);
+                            const clipEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                            clipPath.appendChild(clipEllipse);
+                            document.querySelector('#gardenSVG defs').appendChild(clipPath);
+                        }
+                        const clipEllipse = clipPath.querySelector('ellipse');
+                        clipEllipse.setAttribute('cx', cx);
+                        clipEllipse.setAttribute('cy', cy);
+                        clipEllipse.setAttribute('rx', width / 2);
+                        clipEllipse.setAttribute('ry', height / 2);
 
-                    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    icon.setAttribute('x', cx);
-                    icon.setAttribute('y', cy);
-                    icon.setAttribute('text-anchor', 'middle');
-                    icon.setAttribute('dominant-baseline', 'central');
-                    icon.setAttribute('fill', '#ffffff');
-                    icon.setAttribute('font-size', Math.min(width, height) * 0.4 + 'px');
-                    icon.setAttribute('font-family', 'FontAwesome');
-                    
-                    let iconChar = '\uf1bb';
-                    if (plant.category === 'shrub') iconChar = '\uf801';
-                    if (plant.category === 'flower') iconChar = '\uf4d8';
-                    if (plant.category === 'vegetable') iconChar = '\uf787';
+                        const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+                        img.setAttribute('x', plant.x);
+                        img.setAttribute('y', plant.y);
+                        img.setAttribute('width', width);
+                        img.setAttribute('height', height);
+                        img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', plant.imageUrl);
+                        img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+                        img.setAttribute('clip-path', `url(#${clipId})`);
+                        img.setAttribute('filter', 'url(#shadow)');
+                        g.appendChild(img);
 
-                    icon.textContent = iconChar;
-                    g.appendChild(icon);
+                        const borderEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                        borderEllipse.setAttribute('cx', cx);
+                        borderEllipse.setAttribute('cy', cy);
+                        borderEllipse.setAttribute('rx', width / 2);
+                        borderEllipse.setAttribute('ry', height / 2);
+                        borderEllipse.setAttribute('fill', 'none');
+                        borderEllipse.setAttribute('stroke', isSelected ? '#2563eb' : 'rgba(255,255,255,0.8)');
+                        borderEllipse.setAttribute('stroke-width', isSelected ? '3' : '2');
+                        g.appendChild(borderEllipse);
+                    } else {
+                        const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                        ellipse.setAttribute('cx', cx);
+                        ellipse.setAttribute('cy', cy);
+                        ellipse.setAttribute('rx', width / 2);
+                        ellipse.setAttribute('ry', height / 2);
+                        ellipse.setAttribute('fill', plant.color || '#22c55e');
+                        ellipse.setAttribute('fill-opacity', '0.9');
+                        ellipse.setAttribute('stroke', isSelected ? '#2563eb' : 'rgba(255,255,255,0.6)');
+                        ellipse.setAttribute('stroke-width', isSelected ? '3' : '2');
+                        ellipse.setAttribute('filter', 'url(#shadow)');
+                        g.appendChild(ellipse);
+
+                        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        icon.setAttribute('x', cx);
+                        icon.setAttribute('y', cy);
+                        icon.setAttribute('text-anchor', 'middle');
+                        icon.setAttribute('dominant-baseline', 'central');
+                        icon.setAttribute('fill', '#ffffff');
+                        icon.setAttribute('font-size', Math.min(width, height) * 0.4 + 'px');
+                        icon.setAttribute('font-family', 'FontAwesome');
+                        
+                        let iconChar = '\uf1bb';
+                        if (plant.category === 'shrub') iconChar = '\uf801';
+                        if (plant.category === 'flower') iconChar = '\uf4d8';
+                        if (plant.category === 'vegetable') iconChar = '\uf787';
+
+                        icon.textContent = iconChar;
+                        g.appendChild(icon);
+                    }
                 }
 
                 const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -2144,6 +2184,16 @@
             renderInspector();
         }
 
+        function openPlantDetail(plantId) {
+            const plant = appState.plants.find(p => p.id === plantId);
+            if (!plant) return;
+            switchView('map');
+            if (plant.zoneId && plant.zoneId !== appState.activeZoneId) {
+                selectZone(plant.zoneId);
+            }
+            selectPlant(plantId);
+        }
+
         function addNewPlantShape(category) {
             const newId = 'p-' + Date.now();
             const currentZone = getCurrentZone();
@@ -2155,15 +2205,46 @@
             let treeHeight = 25;
             let shadowRotation = 0;
             let shadowAspect = 1.5;
+            let imageUrl = '';
 
-            if (category === 'tree') { name = 'Oak Tree'; color = '#15803d'; w = 140; h = 140; canopyCover = 180; treeHeight = 30; shadowRotation = 0; shadowAspect = 1.6; }
-            if (category === 'shrub') { name = 'Hydrangea Shrub'; color = '#65a30d'; w = 90; h = 90; }
-            if (category === 'flower') { name = 'Coneflower'; color = '#e11d48'; w = 70; h = 70; }
-            if (category === 'vegetable') { name = 'Tomato Crop'; color = '#d97706'; w = 80; h = 80; }
-            if (category === 'planter') { name = 'Raised Garden Bed'; color = '#b45309'; w = 160; h = 100; }
-            if (category === 'patio') { name = 'Stone Patio Deck'; color = '#64748b'; w = 200; h = 140; }
-            if (category === 'structure') { name = 'Storage Shed'; color = '#334155'; w = 180; h = 120; }
-            if (category === 'irrigation') { name = 'Drip Hose Line'; color = '#06b6d4'; w = 150; h = 50; }
+            if (category === 'tree') {
+                name = 'New Tree';
+                color = '#15803d';
+                w = 120; h = 120;
+                canopyCover = 140;
+                imageUrl = 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60';
+            } else if (category === 'shrub') {
+                name = 'New Shrub';
+                color = '#65a30d';
+                w = 90; h = 90;
+                imageUrl = 'https://images.unsplash.com/photo-1598880940371-c756e015fea1?w=500&auto=format&fit=crop&q=60';
+            } else if (category === 'flower') {
+                name = 'New Flower';
+                color = '#e11d48';
+                w = 80; h = 80;
+                imageUrl = 'https://images.unsplash.com/photo-1563241527-3004b7be0ffd?w=500&auto=format&fit=crop&q=60';
+            } else if (category === 'vegetable') {
+                name = 'Veggie Crop';
+                color = '#d97706';
+                w = 80; h = 80;
+                imageUrl = 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?w=500&auto=format&fit=crop&q=60';
+            } else if (category === 'planter') {
+                name = 'Raised Garden Bed';
+                color = '#b45309';
+                w = 180; h = 100;
+            } else if (category === 'patio') {
+                name = 'Patio / Deck';
+                color = '#64748b';
+                w = 200; h = 160;
+            } else if (category === 'structure') {
+                name = 'House / Shed';
+                color = '#334155';
+                w = 220; h = 150;
+            } else if (category === 'irrigation') {
+                name = 'Drip Hose Line';
+                color = '#06b6d4';
+                w = 150; h = 0;
+            }
 
             const newPlant = {
                 id: newId,
@@ -2173,10 +2254,10 @@
                 sunNeeds: currentZone.sunExposure || 'Full Sun',
                 microSun: currentZone.sunExposure || 'Full Sun',
                 waterNeeds: 'Moderate',
-                imageUrl: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60',
+                imageUrl: imageUrl,
                 plantedDate: new Date().toISOString().split('T')[0],
-                x: 250 + (appState.plants.length * 15) % 200,
-                y: 200 + (appState.plants.length * 15) % 200,
+                x: 200 + (appState.plants.length * 15) % 200,
+                y: 150 + (appState.plants.length * 15) % 200,
                 width: w,
                 height: h,
                 canopyCover: canopyCover,
@@ -2184,7 +2265,7 @@
                 shadowRotation: shadowRotation,
                 shadowAspect: shadowAspect,
                 color: color,
-                hasShadow: category === 'tree' || category === 'structure',
+                hasShadow: ['tree', 'structure'].includes(category),
                 notes: []
             };
 
@@ -2196,40 +2277,44 @@
         }
 
         function renderInspector() {
-            const noSel = document.getElementById('noSelectionMsg');
-            const form = document.getElementById('inspectorForm');
+            const noSelMsg = document.getElementById('noSelectionMsg');
+            const inspForm = document.getElementById('inspectorForm');
 
             if (!appState.selectedPlantId) {
-                noSel.classList.remove('hidden');
-                form.classList.add('hidden');
+                noSelMsg.classList.remove('hidden');
+                inspForm.classList.add('hidden');
                 return;
             }
 
             const plant = appState.plants.find(p => p.id === appState.selectedPlantId);
             if (!plant) {
                 appState.selectedPlantId = null;
-                noSel.classList.remove('hidden');
-                form.classList.add('hidden');
+                noSelMsg.classList.remove('hidden');
+                inspForm.classList.add('hidden');
                 return;
             }
 
-            noSel.classList.add('hidden');
-            form.classList.remove('hidden');
+            noSelMsg.classList.add('hidden');
+            inspForm.classList.remove('hidden');
 
             document.getElementById('inspTitleHeader').innerText = plant.name;
             document.getElementById('inspTypeBadge').innerText = plant.category;
-            document.getElementById('inspImagePreview').src = plant.imageUrl || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60';
+            
+            const defaultImg = plant.imageUrl || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60';
+            document.getElementById('inspImagePreview').src = defaultImg;
 
-            document.getElementById('inspNameInput').value = plant.name;
-            document.getElementById('inspCategorySelect').value = plant.category;
+            document.getElementById('inspNameInput').value = plant.name || '';
+            document.getElementById('inspCategorySelect').value = plant.category || 'tree';
 
-            document.getElementById('inspWidthInput').value = plant.width || 100;
-            document.getElementById('inspHeightInput').value = plant.height || 100;
+            const widthVal = plant.width || plant.size || 100;
+            const heightVal = plant.height || plant.size || 100;
+            document.getElementById('inspWidthInput').value = widthVal;
+            document.getElementById('inspHeightInput').value = heightVal;
 
-            const treeSection = document.getElementById('treeCanopySection');
+            const canopySec = document.getElementById('treeCanopySection');
             if (plant.category === 'tree') {
-                treeSection.classList.remove('hidden');
-                document.getElementById('inspCanopyInput').value = plant.canopyCover || plant.width || 100;
+                canopySec.classList.remove('hidden');
+                document.getElementById('inspCanopyInput').value = plant.canopyCover || widthVal;
                 document.getElementById('inspTreeHeightInput').value = plant.treeHeight || 25;
                 document.getElementById('inspTreeHeightVal').innerText = (plant.treeHeight || 25) + ' ft';
                 document.getElementById('inspShadowRotationInput').value = plant.shadowRotation || 0;
@@ -2237,11 +2322,11 @@
                 document.getElementById('inspShadowAspectInput').value = plant.shadowAspect || 1.5;
                 document.getElementById('inspShadowAspectVal').innerText = (plant.shadowAspect || 1.5) + 'x';
             } else {
-                treeSection.classList.add('hidden');
+                canopySec.classList.add('hidden');
             }
 
             const shadowSec = document.getElementById('castShadowSection');
-            if (['flower', 'shrub', 'vegetable'].includes(plant.category)) {
+            if (plant.category !== 'tree' && plant.category !== 'structure' && plant.category !== 'planter' && plant.category !== 'patio' && plant.category !== 'irrigation') {
                 shadowSec.classList.remove('hidden');
                 document.getElementById('inspHasShadowCheckbox').checked = !!plant.hasShadow;
             } else {
@@ -2260,9 +2345,8 @@
             const plant = appState.plants.find(p => p.id === appState.selectedPlantId);
             if (!plant) return;
 
-            plant.name = document.getElementById('inspNameInput').value;
+            plant.name = document.getElementById('inspNameInput').value.trim() || 'Untitled Element';
             plant.category = document.getElementById('inspCategorySelect').value;
-
             plant.width = parseInt(document.getElementById('inspWidthInput').value) || 50;
             plant.height = parseInt(document.getElementById('inspHeightInput').value) || 50;
 
@@ -2273,11 +2357,12 @@
                 plant.shadowAspect = parseFloat(document.getElementById('inspShadowAspectInput').value) || 1.5;
             }
 
-            if (['flower', 'shrub', 'vegetable'].includes(plant.category)) {
+            if (plant.category !== 'tree' && plant.category !== 'structure') {
                 plant.hasShadow = document.getElementById('inspHasShadowCheckbox').checked;
             }
 
             plant.microSun = document.getElementById('inspMicroSunSelect').value;
+            plant.sunNeeds = plant.microSun;
             plant.waterNeeds = document.getElementById('inspWaterSelect').value;
             plant.color = document.getElementById('inspColorInput').value;
 
@@ -2286,6 +2371,7 @@
 
             saveState();
             renderMapCanvas();
+            applyTableFiltersAndSort();
         }
 
         function renderInspectorNotesList(plant) {
@@ -2293,44 +2379,41 @@
             container.innerHTML = '';
 
             if (!plant.notes || plant.notes.length === 0) {
-                container.innerHTML = `<p class="text-[11px] text-slate-400 italic py-1">No notes recorded yet.</p>`;
+                container.innerHTML = `<div class="text-[11px] text-slate-400 italic py-1">No notes recorded yet.</div>`;
                 return;
             }
 
             plant.notes.forEach(note => {
-                const item = document.createElement('div');
-                item.className = 'p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1 relative group';
-                item.innerHTML = `
-                    <div class="flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                        <span>${note.date}</span>
-                        <button onclick="deleteNoteFromSelectedPlant('${note.id}')" class="text-slate-400 hover:text-rose-600 transition">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
+                const noteEl = document.createElement('div');
+                noteEl.className = 'bg-amber-50/60 border border-amber-200/80 rounded-lg p-2 text-xs flex justify-between items-start gap-1';
+                noteEl.innerHTML = `
+                    <div class="flex-1">
+                        <div class="text-[9px] font-bold text-amber-700">${note.date}</div>
+                        <p class="text-slate-800 text-[11px] leading-snug">${note.text}</p>
                     </div>
-                    <p class="text-slate-700 font-medium leading-tight">${note.text}</p>
+                    <button onclick="deleteNoteFromSelectedPlant('${note.id}')" class="text-slate-400 hover:text-rose-600 text-[10px] p-0.5">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
                 `;
-                container.appendChild(item);
+                container.appendChild(noteEl);
             });
         }
 
         function addNoteToSelectedPlant() {
             if (!appState.selectedPlantId) return;
+            const plant = appState.plants.find(p => p.id === appState.selectedPlantId);
             const input = document.getElementById('inspNewNoteInput');
             const text = input.value.trim();
-            if (!text) return;
 
-            const plant = appState.plants.find(p => p.id === appState.selectedPlantId);
-            if (!plant) return;
+            if (!text || !plant) return;
 
             if (!plant.notes) plant.notes = [];
-
-            const newNote = {
+            plant.notes.unshift({
                 id: 'n-' + Date.now(),
                 date: new Date().toISOString().split('T')[0],
                 text: text
-            };
+            });
 
-            plant.notes.unshift(newNote);
             input.value = '';
             saveState();
             renderInspectorNotesList(plant);
@@ -2350,18 +2433,21 @@
             if (!appState.selectedPlantId) return;
             appState.plants = appState.plants.filter(p => p.id !== appState.selectedPlantId);
             appState.selectedPlantId = null;
+
             saveState();
             renderMapCanvas();
             renderInspector();
+            applyTableFiltersAndSort();
         }
 
         function clearCurrentZoneMap() {
-            if (confirm('Clear all elements from the active zone layout?')) {
+            if (confirm('Are you sure you want to delete all elements in this zone?')) {
                 appState.plants = appState.plants.filter(p => p.zoneId !== appState.activeZoneId);
                 appState.selectedPlantId = null;
                 saveState();
                 renderMapCanvas();
                 renderInspector();
+                applyTableFiltersAndSort();
             }
         }
 
@@ -2370,110 +2456,136 @@
             const currentZone = getCurrentZone();
             if (!currentZone) return;
 
-            const grid = document.getElementById('sunHourGrid');
-            grid.innerHTML = '';
+            document.getElementById('sunZoneSelect').value = currentZone.id;
 
-            const hoursList = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+            const hourGrid = document.getElementById('sunHourGrid');
+            hourGrid.innerHTML = '';
+
             const activeHours = currentZone.sunHours || [];
+            const dayHours = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
 
-            hoursList.forEach(h => {
+            dayHours.forEach(h => {
                 const isActive = activeHours.includes(h);
-                const period = h >= 12 ? 'PM' : 'AM';
-                const displayH = h > 12 ? h - 12 : h;
-
+                const displayHour = h > 12 ? (h - 12) + ' PM' : (h === 12 ? '12 PM' : h + ' AM');
+                
                 const btn = document.createElement('button');
-                btn.onclick = () => toggleZoneSunHour(currentZone.id, h);
-                btn.className = `p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center space-y-1 ${
-                    isActive 
-                    ? 'bg-amber-500 text-white border-amber-600 shadow-md scale-105' 
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                btn.onclick = () => toggleZoneSunHour(h);
+                btn.className = `p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center gap-1 ${
+                    isActive
+                    ? 'bg-amber-500 border-amber-600 text-white shadow-sm'
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                 }`;
                 btn.innerHTML = `
-                    <span>${displayH}:00 ${period}</span>
-                    <i class="fa-solid fa-sun ${isActive ? 'text-amber-100' : 'text-slate-300'} text-sm"></i>
+                    <i class="fa-solid fa-sun ${isActive ? 'text-white' : 'text-slate-300'} text-base"></i>
+                    <span>${displayHour}</span>
                 `;
-                grid.appendChild(btn);
+                hourGrid.appendChild(btn);
             });
 
             const totalHours = activeHours.length;
             document.getElementById('sunHoursTotal').innerText = `${totalHours} Direct Solar Hours / Day`;
 
-            let rating = 'Full Shade';
-            let bestCrops = 'Hostas, Ferns, Moss, Leafy Greens';
-            if (totalHours >= 6) {
-                rating = 'Full Sun';
-                bestCrops = 'Tomatoes, Peppers, Roses, Fruit Trees, Lavender';
-            } else if (totalHours >= 3) {
+            let rating = 'Full Sun';
+            let bestPlants = 'Tomatoes, Peppers, Fruit Trees, Roses, Lavender';
+            let iconClass = 'bg-amber-50 border-amber-200 text-amber-600';
+
+            if (totalHours < 3) {
+                rating = 'Full Shade';
+                bestPlants = 'Hostas, Ferns, Moss, Heuchera, Impatiens';
+                iconClass = 'bg-indigo-50 border-indigo-200 text-indigo-600';
+            } else if (totalHours < 6) {
                 rating = 'Partial Shade';
-                bestCrops = 'Hydrangeas, Lettuce, Spinach, Root Veggies, Herbs';
+                bestPlants = 'Lettuce, Spinach, Hydrangeas, Camellias, Herbs';
+                iconClass = 'bg-lime-50 border-lime-200 text-lime-600';
             }
 
             document.getElementById('sunRatingText').innerText = rating;
-            document.getElementById('sunBestPlantsText').innerText = bestCrops;
+            document.getElementById('sunRatingText').className = `text-lg font-bold ${totalHours < 3 ? 'text-indigo-600' : totalHours < 6 ? 'text-lime-600' : 'text-amber-600'}`;
+            document.getElementById('sunBestPlantsText').innerText = bestPlants;
+            document.getElementById('sunRatingIconBg').className = `w-12 h-12 rounded-xl border flex items-center justify-center text-2xl ${iconClass}`;
+
             currentZone.sunExposure = rating;
+            document.getElementById('currentZoneSunLabel').innerText = rating;
 
             document.getElementById('zoneNotesTextarea').value = currentZone.note || '';
         }
 
-        function toggleZoneSunHour(zoneId, hour) {
-            const zone = appState.zones.find(z => z.id === zoneId);
-            if (!zone) return;
+        function switchZoneFromSunTab(zoneId) {
+            appState.activeZoneId = zoneId;
+            saveState();
+            renderZoneTabs();
+            renderSunTrackerView();
+        }
 
-            if (!zone.sunHours) zone.sunHours = [];
-            const index = zone.sunHours.indexOf(hour);
-            if (index > -1) {
-                zone.sunHours.splice(index, 1);
+        function toggleZoneSunHour(hour) {
+            const currentZone = getCurrentZone();
+            if (!currentZone) return;
+
+            if (!currentZone.sunHours) currentZone.sunHours = [];
+
+            if (currentZone.sunHours.includes(hour)) {
+                currentZone.sunHours = currentZone.sunHours.filter(h => h !== hour);
             } else {
-                zone.sunHours.push(hour);
+                currentZone.sunHours.push(hour);
             }
 
             saveState();
-            renderSunTrackerView();
-            renderZoneTabs();
-        }
-
-        function switchZoneFromSunTab(zoneId) {
-            selectZone(zoneId);
             renderSunTrackerView();
         }
 
         function saveZoneMicroclimateNote(noteText) {
             const currentZone = getCurrentZone();
-            if (currentZone) {
-                currentZone.note = noteText;
-                saveState();
+            if (!currentZone) return;
+            currentZone.note = noteText;
+            saveState();
+        }
+
+        function sortTableBy(columnKey) {
+            if (currentSortColumn === columnKey) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = columnKey;
+                currentSortDirection = 'asc';
             }
+            applyTableFiltersAndSort();
         }
 
         function applyTableFiltersAndSort() {
-            const searchVal = document.getElementById('tableGlobalSearch').value.toLowerCase();
-            const catVal = document.getElementById('filterColCategory').value;
-            const zoneVal = document.getElementById('filterColZone').value;
-            const sunVal = document.getElementById('filterColMicroSun').value;
-            const waterVal = document.getElementById('filterColWater').value;
+            populateZoneDropdowns();
 
-            // Exclude irrigation and structure elements from Plant Database
-            let filtered = appState.plants.filter(p => p.category !== 'irrigation' && p.category !== 'structure');
+            const globalQuery = (document.getElementById('tableGlobalSearch')?.value || '').toLowerCase().trim();
+            const catFilter = document.getElementById('filterColCategory')?.value || 'ALL';
+            const zoneFilter = document.getElementById('filterColZone')?.value || 'ALL';
+            const sunFilter = document.getElementById('filterColMicroSun')?.value || 'ALL';
+            const waterFilter = document.getElementById('filterColWater')?.value || 'ALL';
 
-            if (searchVal) {
-                filtered = filtered.filter(p => p.name.toLowerCase().includes(searchVal));
-            }
+            let filtered = appState.plants.filter(plant => {
+                if (globalQuery && !plant.name.toLowerCase().includes(globalQuery)) return false;
+                if (catFilter !== 'ALL' && plant.category !== catFilter) return false;
+                if (zoneFilter !== 'ALL' && plant.zoneId !== zoneFilter) return false;
+                
+                const microSun = plant.microSun || plant.sunNeeds || 'Full Sun';
+                if (sunFilter !== 'ALL' && microSun !== sunFilter) return false;
 
-            if (catVal !== 'ALL') filtered = filtered.filter(p => p.category === catVal);
-            if (zoneVal !== 'ALL') filtered = filtered.filter(p => p.zoneId === zoneVal);
-            if (sunVal !== 'ALL') filtered = filtered.filter(p => (p.microSun || p.sunNeeds) === sunVal);
-            if (waterVal !== 'ALL') filtered = filtered.filter(p => p.waterNeeds === waterVal);
+                const water = plant.waterNeeds || 'Moderate';
+                if (waterFilter !== 'ALL' && water !== waterFilter) return false;
+
+                return true;
+            });
 
             filtered.sort((a, b) => {
                 let valA = a[currentSortColumn] || '';
                 let valB = b[currentSortColumn] || '';
 
                 if (currentSortColumn === 'zone') {
-                    const zA = appState.zones.find(z => z.id === a.zoneId);
-                    const zB = appState.zones.find(z => z.id === b.zoneId);
-                    valA = zA ? zA.name : '';
-                    valB = zB ? zB.name : '';
+                    const zoneA = appState.zones.find(z => z.id === a.zoneId)?.name || '';
+                    const zoneB = appState.zones.find(z => z.id === b.zoneId)?.name || '';
+                    valA = zoneA;
+                    valB = zoneB;
                 }
+
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
 
                 if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
                 if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
@@ -2481,28 +2593,19 @@
             });
 
             renderAirtableRows(filtered);
+            updateSortHeaderIcons();
         }
 
-        function sortTableBy(colName) {
-            if (currentSortColumn === colName) {
-                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSortColumn = colName;
-                currentSortDirection = 'asc';
-            }
-
-            ['name', 'category', 'zone', 'microSun', 'waterNeeds'].forEach(c => {
-                const icon = document.getElementById(`sort-icon-${c}`);
-                if (icon) {
-                    if (c === currentSortColumn) {
-                        icon.className = `fa-solid fa-sort-${currentSortDirection === 'asc' ? 'up' : 'down'} text-emerald-600`;
-                    } else {
-                        icon.className = 'fa-solid fa-sort text-slate-400';
-                    }
+        function updateSortHeaderIcons() {
+            ['name', 'category', 'zone', 'microSun', 'waterNeeds'].forEach(col => {
+                const icon = document.getElementById(`sort-icon-${col}`);
+                if (!icon) return;
+                if (currentSortColumn === col) {
+                    icon.className = `fa-solid fa-sort-${currentSortDirection === 'asc' ? 'up' : 'down'} text-emerald-600`;
+                } else {
+                    icon.className = 'fa-solid fa-sort text-slate-400';
                 }
             });
-
-            applyTableFiltersAndSort();
         }
 
         function resetTableFilters() {
@@ -2511,70 +2614,103 @@
             document.getElementById('filterColZone').value = 'ALL';
             document.getElementById('filterColMicroSun').value = 'ALL';
             document.getElementById('filterColWater').value = 'ALL';
+            currentSortColumn = 'name';
+            currentSortDirection = 'asc';
             applyTableFiltersAndSort();
         }
 
-        function renderAirtableRows(plantsList) {
+        function renderAirtableRows(plants) {
             const tbody = document.getElementById('airtableTbody');
             tbody.innerHTML = '';
 
-            document.getElementById('airtableRecordCount').innerText = `${plantsList.length} plants mapped`;
+            document.getElementById('airtableRecordCount').innerText = `${plants.length} records shown`;
 
-            if (plantsList.length === 0) {
+            if (plants.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="7" class="p-8 text-center text-slate-400 italic">
-                            No matching plants found in the database.
+                            No plants match the current search or filters.
                         </td>
                     </tr>
                 `;
                 return;
             }
 
-            plantsList.forEach(plant => {
-                const zone = appState.zones.find(z => z.id === plant.zoneId);
+            plants.forEach(plant => {
+                const zoneObj = appState.zones.find(z => z.id === plant.zoneId);
+                const zoneName = zoneObj ? zoneObj.name : 'Unknown Zone';
+                
                 const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-50/80 transition border-b border-slate-100';
+                tr.className = 'hover:bg-slate-50/80 transition';
+
+                const microSunVal = plant.microSun || plant.sunNeeds || 'Full Sun';
+                const waterVal = plant.waterNeeds || 'Moderate';
+
+                const defaultImg = plant.imageUrl || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60';
+                const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(plant.name)}`;
 
                 tr.innerHTML = `
-                    <td class="p-3 border-r border-slate-100 font-semibold text-slate-900 flex items-center space-x-2.5">
-                        <img src="${plant.imageUrl}" alt="" class="w-7 h-7 rounded-lg object-cover border border-slate-200">
-                        <span>${plant.name}</span>
+                    <td class="p-3 border-r border-slate-200 font-bold text-slate-800">
+                        <div class="flex items-center space-x-3">
+                            <img src="${defaultImg}" alt="${plant.name}" class="w-12 h-12 rounded-lg object-cover border border-slate-200 shadow-sm flex-shrink-0" onerror="this.src='https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60'">
+                            <span class="cursor-pointer hover:text-emerald-600 transition" onclick="openPlantDetail('${plant.id}')">${plant.name}</span>
+                        </div>
                     </td>
-                    <td class="p-3 border-r border-slate-100">
-                        <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+
+                    <td class="p-3 border-r border-slate-200">
+                        <span class="capitalize px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px] border border-slate-200">
                             ${plant.category}
                         </span>
                     </td>
-                    <td class="p-3 border-r border-slate-100 font-medium text-slate-700">
-                        <i class="fa-solid fa-map-pin text-rose-500 mr-1"></i> ${zone ? zone.name : 'Unassigned'}
+
+                    <td class="p-3 border-r border-slate-200 font-medium text-slate-700">
+                        <i class="fa-solid fa-layer-group text-slate-400 mr-1 text-[10px]"></i> ${zoneName}
                     </td>
-                    <td class="p-3 border-r border-slate-100 font-medium text-amber-700">
-                        ${plant.microSun || plant.sunNeeds || 'Full Sun'}
+
+                    <td class="p-3 border-r border-slate-200">
+                        <select onchange="updatePlantFieldFromTable('${plant.id}', 'microSun', this.value)" class="w-full bg-transparent text-amber-700 font-semibold focus:outline-none focus:bg-white rounded px-1 py-0.5 border border-transparent hover:border-slate-300">
+                            <option value="Full Sun" ${microSunVal === 'Full Sun' ? 'selected' : ''}>☀️ Full Sun</option>
+                            <option value="Partial Shade" ${microSunVal === 'Partial Shade' ? 'selected' : ''}>⛅ Partial Shade</option>
+                            <option value="Full Shade" ${microSunVal === 'Full Shade' ? 'selected' : ''}>☁️ Full Shade</option>
+                            <option value="Deep Shade" ${microSunVal === 'Deep Shade' ? 'selected' : ''}>🌑 Deep Shade</option>
+                        </select>
                     </td>
-                    <td class="p-3 border-r border-slate-100 font-medium text-cyan-700">
-                        ${plant.waterNeeds || 'Moderate'}
+
+                    <td class="p-3 border-r border-slate-200">
+                        <select onchange="updatePlantFieldFromTable('${plant.id}', 'waterNeeds', this.value)" class="w-full bg-transparent text-cyan-700 font-semibold focus:outline-none focus:bg-white rounded px-1 py-0.5 border border-transparent hover:border-slate-300">
+                            <option value="Low" ${waterVal === 'Low' ? 'selected' : ''}>💧 Low</option>
+                            <option value="Moderate" ${waterVal === 'Moderate' ? 'selected' : ''}>💧💧 Moderate</option>
+                            <option value="High" ${waterVal === 'High' ? 'selected' : ''}>💧💧💧 High</option>
+                        </select>
                     </td>
-                    <td class="p-3 border-r border-slate-100 text-center text-slate-500">
-                        ${plant.notes ? plant.notes.length : 0} notes
+
+                    <td class="p-3 border-r border-slate-200 text-center">
+                        <a href="${wikiUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-bold hover:underline">
+                            <i class="fa-brands fa-wikipedia-w text-xs"></i> Wikipedia
+                        </a>
                     </td>
+
                     <td class="p-3 text-center">
-                        <button onclick="locateAndEditPlant('${plant.id}')" class="px-2.5 py-1 text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition border border-emerald-200">
-                            View on Map
+                        <button onclick="openPlantDetail('${plant.id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition border border-slate-200">
+                            Edit
                         </button>
                     </td>
                 `;
+
                 tbody.appendChild(tr);
             });
         }
 
-        function locateAndEditPlant(plantId) {
+        function updatePlantFieldFromTable(plantId, field, value) {
             const plant = appState.plants.find(p => p.id === plantId);
-            if (plant) {
-                appState.activeZoneId = plant.zoneId;
-                appState.selectedPlantId = plant.id;
-                switchView('map');
-            }
+            if (!plant) return;
+
+            plant[field] = value;
+            if (field === 'microSun') plant.sunNeeds = value;
+
+            saveState();
+            renderMapCanvas();
+            renderInspector();
         }
 
         function exportData() {
@@ -2588,23 +2724,25 @@
         }
 
         function importData(event) {
-            const fileReader = new FileReader();
-            fileReader.onload = function(e) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
                 try {
-                    const imported = JSON.parse(e.target.result);
-                    if (imported && imported.zones && imported.plants) {
-                        appState = imported;
+                    const importedState = JSON.parse(e.target.result);
+                    if (importedState && importedState.plants && importedState.zones) {
+                        appState = importedState;
                         saveState();
-                        renderZoneTabs();
-                        renderMapCanvas();
-                        renderSunTrackerView();
-                        alert('Garden configuration successfully restored!');
+                        location.reload();
+                    } else {
+                        alert('Invalid GardenScape data backup file format.');
                     }
                 } catch(err) {
-                    alert('Invalid JSON file format.');
+                    alert('Failed to parse backup JSON file.');
                 }
             };
-            fileReader.readAsText(event.target.files[0]);
+            reader.readAsText(file);
         }
     </script>
 </body>
