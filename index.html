@@ -156,7 +156,7 @@
             </div>
         </div>
 
-        <!-- Unified Navigation Header Tabs (Kept strictly left-justified) -->
+        <!-- Unified Navigation Header Tabs -->
         <div class="flex-1 flex items-center gap-2 justify-start ml-4">
             <!-- View Switcher Tabs -->
             <div class="bg-slate-100 border border-slate-200 p-1 rounded-xl flex">
@@ -174,7 +174,7 @@
                 </button>
             </div>
 
-            <!-- Zone Selector Tabs (Visible only when Layout Map tab is active) -->
+            <!-- Zone Selector Tabs -->
             <div id="layoutZoneControls" class="flex items-center bg-slate-100 border border-slate-200 p-1 rounded-xl overflow-x-auto max-w-xl">
                 <div id="zoneTabsList" class="flex items-center space-x-1">
                     <!-- Dynamic custom zones rendered here -->
@@ -318,7 +318,7 @@
                         <div class="flex items-center space-x-4 text-xs text-slate-500">
                             <span><i class="fa-regular fa-sun text-amber-500 mr-1"></i> Sun Exposure: <strong id="currentZoneSunLabel" class="text-slate-800">Full Sun</strong></span>
                             
-                            <!-- North Selection placed to right of Sun Exposure -->
+                            <!-- North Selection -->
                             <div class="flex items-center space-x-1.5 border-l border-slate-200 pl-3">
                                 <span class="text-slate-600 font-semibold">North:</span>
                                 <select id="compassNorthSelect" onchange="updateNorthDirection(this.value)" class="bg-white border border-slate-300 text-xs rounded-lg px-2 py-0.5 text-amber-600 font-bold focus:outline-none">
@@ -329,7 +329,7 @@
                                 </select>
                             </div>
 
-                            <!-- Sun Time Slider placed to right of North -->
+                            <!-- Sun Time Slider -->
                             <div class="flex items-center space-x-2 border-l border-slate-200 pl-3">
                                 <span class="text-slate-600 font-semibold flex items-center"><i class="fa-solid fa-clock text-indigo-500 mr-1"></i>Sun Time:</span>
                                 <span id="solarTimeDisplay" class="font-bold text-amber-600 min-w-[55px]">1:00 PM</span>
@@ -370,10 +370,10 @@
                             <!-- Background Grid Layer -->
                             <rect width="100%" height="100%" fill="url(#grid)" />
 
-                            <!-- Dynamic Cast Shadows Layer (Based on Solar Position & Compass) -->
+                            <!-- Dynamic Cast Shadows Layer -->
                             <g id="shadowsGroup"></g>
 
-                            <!-- Mapped Elements Layer (Plants, Raised Beds, Hardscapes) -->
+                            <!-- Mapped Elements Layer -->
                             <g id="mapElementsGroup">
                                 <!-- Dynamic shapes rendered here -->
                             </g>
@@ -409,7 +409,7 @@
                 </div>
             </main>
 
-            <!-- Right Inspector Sidebar (Plant / Hardscape / Details) -->
+            <!-- Right Inspector Sidebar -->
             <aside id="inspectorSidebar" class="w-80 bg-white border-l border-slate-200 flex flex-col z-10 shadow-sm transition-all duration-300">
                 <div class="p-3 border-b border-slate-200 flex items-center justify-between">
                     <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
@@ -438,7 +438,7 @@
                             </div>
                         </div>
 
-                        <!-- Custom Image Upload Control for Plant Categories -->
+                        <!-- Custom Image Upload Control -->
                         <div id="customPhotoUploadContainer" class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                             <label class="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
                                 <i class="fa-solid fa-camera text-emerald-600"></i> Custom Photo
@@ -467,7 +467,7 @@
                                 </select>
                             </div>
 
-                            <!-- Optional Shadow Toggle for Vegetable, Flower, or Shrub -->
+                            <!-- Optional Shadow Toggle -->
                             <div id="castShadowSection" class="hidden flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                                 <span class="text-[11px] font-semibold text-slate-700 flex items-center gap-1.5">
                                     <i class="fa-solid fa-moon text-indigo-500"></i> Cast Shadow
@@ -496,12 +496,39 @@
                                     <input type="number" id="inspHeightInput" min="20" max="800" onchange="updateSelectedPlantFromInput()" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-800">
                                 </div>
                             </div>
-                            <!-- Tree Canopy Cover Section -->
-                            <div id="treeCanopySection" class="hidden pt-2 border-t border-slate-200">
-                                <label class="text-[11px] font-semibold text-slate-600 block mb-1 flex items-center gap-1">
-                                    <i class="fa-solid fa-circle-notch text-emerald-600"></i> Canopy Cover Diameter (px)
-                                </label>
-                                <input type="number" id="inspCanopyInput" min="20" max="1000" onchange="updateSelectedPlantFromInput()" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-800">
+
+                            <!-- Tree Canopy & Custom Shade Profile Controls -->
+                            <div id="treeCanopySection" class="hidden pt-2 border-t border-slate-200 space-y-3">
+                                <div>
+                                    <label class="text-[11px] font-semibold text-slate-600 block mb-1 flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-notch text-emerald-600"></i> Canopy Cover Diameter (px)
+                                    </label>
+                                    <input type="number" id="inspCanopyInput" min="20" max="1000" onchange="updateSelectedPlantFromInput()" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-800">
+                                </div>
+
+                                <div>
+                                    <label class="text-[11px] font-semibold text-slate-600 block mb-1 flex items-center justify-between">
+                                        <span><i class="fa-solid fa-ruler-vertical text-amber-600"></i> Tree Height (ft)</span>
+                                        <span id="inspTreeHeightVal" class="text-slate-500 font-bold">25 ft</span>
+                                    </label>
+                                    <input type="range" id="inspTreeHeightInput" min="5" max="100" step="1" value="25" oninput="document.getElementById('inspTreeHeightVal').innerText = this.value + ' ft'; updateSelectedPlantFromInput()" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                                </div>
+
+                                <div>
+                                    <label class="text-[11px] font-semibold text-slate-600 block mb-1 flex items-center justify-between">
+                                        <span><i class="fa-solid fa-arrows-rotate text-indigo-600"></i> Shadow Rotation Offset</span>
+                                        <span id="inspShadowRotationVal" class="text-slate-500 font-bold">0°</span>
+                                    </label>
+                                    <input type="range" id="inspShadowRotationInput" min="0" max="360" step="5" value="0" oninput="document.getElementById('inspShadowRotationVal').innerText = this.value + '°'; updateSelectedPlantFromInput()" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                                </div>
+
+                                <div>
+                                    <label class="text-[11px] font-semibold text-slate-600 block mb-1 flex items-center justify-between">
+                                        <span><i class="fa-solid fa-draw-polygon text-indigo-600"></i> Shadow Stretch Ratio</span>
+                                        <span id="inspShadowAspectVal" class="text-slate-500 font-bold">1.5x</span>
+                                    </label>
+                                    <input type="range" id="inspShadowAspectInput" min="0.5" max="3.0" step="0.1" value="1.5" oninput="document.getElementById('inspShadowAspectVal').innerText = this.value + 'x'; updateSelectedPlantFromInput()" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                                </div>
                             </div>
                         </div>
 
@@ -613,7 +640,7 @@
                     </div>
                 </div>
 
-                <!-- Hour-by-Hour Daylight Grid -->
+                <!-- Daylight Grid -->
                 <div class="bg-white border border-slate-200 p-5 rounded-2xl space-y-4 shadow-sm">
                     <div class="flex items-center justify-between">
                         <div>
@@ -623,7 +650,6 @@
                         <span class="text-xs text-slate-400"><i class="fa-solid fa-info-circle mr-1"></i> Tap pills to toggle</span>
                     </div>
 
-                    <!-- 8 AM to 7 PM Hour Pills -->
                     <div id="sunHourGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-2">
                         <!-- Hour buttons rendered dynamically -->
                     </div>
@@ -640,7 +666,7 @@
             </div>
         </div>
 
-        <!-- ================= VIEW 3: FROST DATE AUTOMATION CALENDAR ================= -->
+        <!-- ================= VIEW 3: CALENDAR ================= -->
         <div id="calendarView" class="hidden flex-1 p-6 overflow-y-auto bg-stone-50 w-full">
             <div class="max-w-6xl mx-auto space-y-6">
                 
@@ -665,9 +691,8 @@
                     </div>
                 </div>
 
-                <!-- Climate Data Metrics Bar (Frost Dates Embedded Directly) -->
+                <!-- Climate Data Metrics Bar -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <!-- Embedded Frost Date Tile 1: Last Spring Frost -->
                     <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col justify-between">
                         <div class="flex items-center space-x-3 mb-2">
                             <div class="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-200 flex items-center justify-center text-cyan-600 text-xl">
@@ -685,7 +710,6 @@
                         </div>
                     </div>
 
-                    <!-- Embedded Frost Date Tile 2: First Fall Frost -->
                     <div class="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col justify-between">
                         <div class="flex items-center space-x-3 mb-2">
                             <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 text-xl">
@@ -753,7 +777,7 @@
             </div>
         </div>
 
-        <!-- ================= VIEW 5: PLANT INDEX (AIRTABLE STYLED TABLE) ================= -->
+        <!-- ================= VIEW 5: PLANT INDEX ================= -->
         <div id="plantsView" class="hidden flex-1 p-6 overflow-y-auto bg-stone-50 w-full">
             <div class="max-w-7xl mx-auto space-y-4">
                 
@@ -766,7 +790,6 @@
                         <p class="text-xs text-slate-500 mt-0.5">Interactive spreadsheet view with live sortable, filterable columns.</p>
                     </div>
 
-                    <!-- Global Quick Search & Counter -->
                     <div class="flex items-center gap-3">
                         <div class="relative">
                             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
@@ -785,8 +808,6 @@
                         <table class="w-full text-left border-collapse text-xs">
                             <thead>
                                 <tr class="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold select-none">
-                                    
-                                    <!-- Column 1: Item Name -->
                                     <th class="p-3 border-r border-slate-200 min-w-[200px]">
                                         <div class="flex items-center justify-between mb-1.5">
                                             <span class="flex items-center gap-1.5 font-bold text-slate-700">
@@ -798,7 +819,6 @@
                                         </div>
                                     </th>
 
-                                    <!-- Column 2: Category -->
                                     <th class="p-3 border-r border-slate-200 min-w-[140px]">
                                         <div class="flex items-center justify-between mb-1.5">
                                             <span class="flex items-center gap-1.5 font-bold text-slate-700">
@@ -817,7 +837,6 @@
                                         </select>
                                     </th>
 
-                                    <!-- Column 3: Zone Location -->
                                     <th class="p-3 border-r border-slate-200 min-w-[150px]">
                                         <div class="flex items-center justify-between mb-1.5">
                                             <span class="flex items-center gap-1.5 font-bold text-slate-700">
@@ -829,11 +848,9 @@
                                         </div>
                                         <select id="filterColZone" onchange="applyTableFiltersAndSort()" class="w-full bg-white border border-slate-200 rounded px-1.5 py-1 text-[11px] text-slate-700 focus:outline-none">
                                             <option value="ALL">All Zones</option>
-                                            <!-- Populated dynamically -->
                                         </select>
                                     </th>
 
-                                    <!-- Column 4: Micro-Sun Exposure -->
                                     <th class="p-3 border-r border-slate-200 min-w-[160px]">
                                         <div class="flex items-center justify-between mb-1.5">
                                             <span class="flex items-center gap-1.5 font-bold text-slate-700">
@@ -852,7 +869,6 @@
                                         </select>
                                     </th>
 
-                                    <!-- Column 5: Water Needs -->
                                     <th class="p-3 border-r border-slate-200 min-w-[130px]">
                                         <div class="flex items-center justify-between mb-1.5">
                                             <span class="flex items-center gap-1.5 font-bold text-slate-700">
@@ -870,12 +886,10 @@
                                         </select>
                                     </th>
 
-                                    <!-- Column 6: Info (Wikipedia Link using Common Name) -->
                                     <th class="p-3 border-r border-slate-200 min-w-[120px] text-center">
                                         <span class="font-bold text-slate-700">Info</span>
                                     </th>
 
-                                    <!-- Column 7: Actions / View -->
                                     <th class="p-3 text-center min-w-[120px]">
                                         <span class="font-bold text-slate-700">Action</span>
                                     </th>
@@ -887,7 +901,6 @@
                         </table>
                     </div>
 
-                    <!-- Airtable Footer Record Count -->
                     <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
                         <span id="airtableRecordCount">0 plants mapped</span>
                         <span class="italic text-[11px]">Click any header arrow to sort • Select dropdowns to filter</span>
@@ -964,7 +977,7 @@
             'DEFAULT': { region: 'Pacific Northwest', lastFrost: '04-15', firstFrost: '11-15' }
         };
 
-        // Plant planting schedule offset rules (in days relative to last spring frost date)
+        // Plant planting schedule offset rules
         const CROP_CALENDAR_RULES = {
             'tomato': { indoorWeeksBefore: 6, outdoorWeeksAfter: 2, dtm: 75, method: 'Indoor Start -> Transplant' },
             'pepper': { indoorWeeksBefore: 8, outdoorWeeksAfter: 3, dtm: 80, method: 'Indoor Start -> Transplant' },
@@ -1007,6 +1020,9 @@
                     width: 140,
                     height: 140,
                     canopyCover: 160,
+                    treeHeight: 25,
+                    shadowRotation: 0,
+                    shadowAspect: 1.6,
                     color: '#15803d',
                     hasShadow: true,
                     notes: [
@@ -1237,7 +1253,6 @@
             try {
                 await loadSavedState();
 
-                // Assign any plant without a valid zone to the primary active zone
                 const validZoneIds = new Set(appState.zones.map(z => z.id));
                 appState.plants.forEach(p => {
                     if (!p.zoneId || !validZoneIds.has(p.zoneId)) {
@@ -1268,7 +1283,7 @@
             } catch (error) {
                 console.error('Could not initialize garden:', error);
                 setSyncStatus('Sync error', 'error');
-                showAuthError('Your account was recognized, but the garden could not be loaded. Make sure the Supabase app_state table and policies have been created.');
+                showAuthError('Your account was recognized, but the garden could not be loaded.');
                 showAuthOverlay();
             } finally {
                 isHydrating = false;
@@ -1350,7 +1365,7 @@
                     if (data.session && data.user) {
                         await initializeAuthenticatedApp(data.user);
                     } else {
-                        showAuthMessage('Account created. Check your email for the confirmation link, then return here to sign in.');
+                        showAuthMessage('Account created. Check your email for confirmation.');
                     }
                 } catch (error) {
                     showAuthError(error.message || 'Unable to create the account.');
@@ -1762,13 +1777,15 @@
             }
 
             const solarProgress = (appState.solarTime - 6) / 12;
-            const solarAzimuth = 90 + (solarProgress * 180);
-            const effectiveSunAngleRad = ((solarAzimuth + appState.northAngle) * Math.PI) / 180;
+            const solarAzimuth = 90 + (solarProgress * 180); // Degrees: 90=East, 180=South, 270=West
+            const effectiveSunAngleDeg = solarAzimuth + appState.northAngle;
+            const effectiveSunAngleRad = (effectiveSunAngleDeg * Math.PI) / 180;
             const solarElevation = Math.max(10, Math.sin(solarProgress * Math.PI) * 70);
             
-            const shadowLengthMultiplier = Math.min(2.5, Math.max(0.3, 1 / Math.tan((solarElevation * Math.PI) / 180)));
-            const shadowDx = -Math.sin(effectiveSunAngleRad) * 40 * shadowLengthMultiplier;
-            const shadowDy = Math.cos(effectiveSunAngleRad) * 40 * shadowLengthMultiplier;
+            // Core solar shadow length factor from solar elevation
+            const shadowLengthMultiplier = Math.min(3.5, Math.max(0.3, 1 / Math.tan((solarElevation * Math.PI) / 180)));
+            const baseDx = -Math.sin(effectiveSunAngleRad);
+            const baseDy = Math.cos(effectiveSunAngleRad);
 
             currentZonePlants.forEach(plant => {
                 const isSelected = plant.id === appState.selectedPlantId;
@@ -1781,16 +1798,22 @@
 
                 if (appState.showShadows && plant.category !== 'irrigation' && plant.category !== 'planter' && plant.category !== 'patio' && hasShadowOption) {
                     const shadowG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    shadowG.setAttribute('fill', 'rgba(15, 23, 42, 0.15)');
+                    shadowG.setAttribute('fill', 'rgba(15, 23, 42, 0.18)');
                     shadowG.setAttribute('filter', 'url(#castShadowBlur)');
 
-                    let shadowHeightMultiplier = 1.0;
-                    if (plant.category === 'structure') shadowHeightMultiplier = 2.2;
-                    if (plant.category === 'tree') shadowHeightMultiplier = 1.8;
-                    if (plant.category === 'flower' || plant.category === 'shrub' || plant.category === 'vegetable') shadowHeightMultiplier = 0.4;
+                    let heightFactor = 1.0;
+                    if (plant.category === 'structure') heightFactor = 2.2;
+                    if (plant.category === 'flower' || plant.category === 'shrub' || plant.category === 'vegetable') heightFactor = 0.4;
+                    
+                    // Taller tree casts a longer shadow
+                    if (plant.category === 'tree') {
+                        const treeHeightFt = plant.treeHeight || 25;
+                        heightFactor = (treeHeightFt / 25.0) * 1.8;
+                    }
 
-                    const sdx = shadowDx * shadowHeightMultiplier;
-                    const sdy = shadowDy * shadowHeightMultiplier;
+                    const shadowDist = 25 * shadowLengthMultiplier * heightFactor;
+                    const sdx = baseDx * shadowDist;
+                    const sdy = baseDy * shadowDist;
 
                     if (plant.category === 'structure') {
                         const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
@@ -1801,19 +1824,33 @@
                         polygon.setAttribute('points', `${p1} ${p2} ${p3} ${p4}`);
                         shadowG.appendChild(polygon);
                     } else if (plant.category === 'tree') {
-                        const shadowEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                        // Non-circular customized shade profile for trees
                         const canopyDiam = plant.canopyCover || width;
-                        shadowEllipse.setAttribute('cx', cx + sdx);
-                        shadowEllipse.setAttribute('cy', cy + sdy);
-                        shadowEllipse.setAttribute('rx', (canopyDiam / 2) * 1.1);
-                        shadowEllipse.setAttribute('ry', (canopyDiam / 2) * 0.9);
+                        const aspectStretch = plant.shadowAspect || 1.5;
+                        const shadowRotationOffset = parseFloat(plant.shadowRotation) || 0;
+                        
+                        // Radii adjusted for height and non-circular directional stretch
+                        const rx = (canopyDiam / 2) * (1 + (shadowLengthMultiplier - 0.5) * 0.25) * (aspectStretch * 0.7);
+                        const ry = (canopyDiam / 2) * Math.min(2.5, Math.max(0.6, shadowLengthMultiplier)) * aspectStretch;
+                        
+                        // Align shadow orientation with sun direction vector plus custom rotation offset
+                        const rotationAngleDeg = effectiveSunAngleDeg + 90 + shadowRotationOffset;
+
+                        const shadowEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                        shadowEllipse.setAttribute('cx', cx + sdx * 0.6);
+                        shadowEllipse.setAttribute('cy', cy + sdy * 0.6);
+                        shadowEllipse.setAttribute('rx', rx);
+                        shadowEllipse.setAttribute('ry', ry);
+                        shadowEllipse.setAttribute('transform', `rotate(${rotationAngleDeg}, ${cx + sdx * 0.6}, ${cy + sdy * 0.6})`);
+
                         shadowG.appendChild(shadowEllipse);
                     } else {
                         const shadowEllipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
                         shadowEllipse.setAttribute('cx', cx + sdx);
                         shadowEllipse.setAttribute('cy', cy + sdy);
                         shadowEllipse.setAttribute('rx', (width / 2) * 1.1);
-                        shadowEllipse.setAttribute('ry', (height / 2) * 0.9);
+                        shadowEllipse.setAttribute('ry', (height / 2) * 0.8 * Math.min(2, shadowLengthMultiplier));
+                        shadowEllipse.setAttribute('transform', `rotate(${effectiveSunAngleDeg + 90}, ${cx + sdx}, ${cy + sdy})`);
                         shadowG.appendChild(shadowEllipse);
                     }
                     shadowsGroup.appendChild(shadowG);
@@ -1823,13 +1860,13 @@
                 g.setAttribute('class', `plant-element ${isSelected ? 'selected' : ''}`);
                 g.setAttribute('data-id', plant.id);
 
-                // Optional Tree Canopy Outline Rendering
+                // Tree Canopy Outline
                 if (plant.category === 'tree' && plant.canopyCover) {
                     const canopyCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                     canopyCircle.setAttribute('cx', cx);
                     canopyCircle.setAttribute('cy', cy);
                     canopyCircle.setAttribute('r', plant.canopyCover / 2);
-                    canopyCircle.setAttribute('fill', 'rgba(34, 197, 94, 0.15)');
+                    canopyCircle.setAttribute('fill', 'rgba(34, 197, 94, 0.12)');
                     canopyCircle.setAttribute('stroke', '#16a34a');
                     canopyCircle.setAttribute('stroke-width', '1.5');
                     canopyCircle.setAttribute('stroke-dasharray', '4 4');
@@ -1903,7 +1940,7 @@
                 label.textContent = plant.name;
                 g.appendChild(label);
 
-                // Water Need Indicator Dots below name
+                // Water Need Indicator Dots
                 const isPlant = ['tree', 'shrub', 'flower', 'vegetable'].includes(plant.category);
                 if (isPlant && plant.waterNeeds) {
                     let dotCount = 1;
@@ -2059,7 +2096,6 @@
                     newY = initialDimensions.y + dy;
                 }
 
-                // Standard bounds check unless it is an irrigation line allowed to draw flat/straight
                 if (dragTarget.category !== 'irrigation') {
                     newW = Math.max(30, newW);
                     newH = Math.max(30, newH);
@@ -2116,39 +2152,47 @@
             let color = '#22c55e';
             let w = 100, h = 100;
             let canopyCover = null;
+            let treeHeight = 25;
+            let shadowRotation = 0;
+            let shadowAspect = 1.5;
 
-            if (category === 'tree') { name = 'Oak Tree'; color = '#15803d'; w = 140; h = 140; canopyCover = 180; }
+            if (category === 'tree') { name = 'Oak Tree'; color = '#15803d'; w = 140; h = 140; canopyCover = 180; treeHeight = 30; shadowRotation = 0; shadowAspect = 1.6; }
             if (category === 'shrub') { name = 'Hydrangea Shrub'; color = '#65a30d'; w = 90; h = 90; }
             if (category === 'flower') { name = 'Coneflower'; color = '#e11d48'; w = 70; h = 70; }
             if (category === 'vegetable') { name = 'Tomato Crop'; color = '#d97706'; w = 80; h = 80; }
             if (category === 'planter') { name = 'Raised Garden Bed'; color = '#b45309'; w = 160; h = 100; }
             if (category === 'patio') { name = 'Stone Patio Deck'; color = '#64748b'; w = 200; h = 140; }
             if (category === 'structure') { name = 'Storage Shed'; color = '#334155'; w = 180; h = 120; }
-            if (category === 'irrigation') { name = 'Drip Line Irrigation'; color = '#06b6d4'; w = 150; h = 0; }
+            if (category === 'irrigation') { name = 'Drip Hose Line'; color = '#06b6d4'; w = 150; h = 50; }
 
             const newPlant = {
                 id: newId,
-                zoneId: appState.activeZoneId,
+                zoneId: currentZone.id,
                 name: name,
                 category: category,
-                sunNeeds: currentZone.sunExposure,
-                microSun: currentZone.sunExposure,
+                sunNeeds: currentZone.sunExposure || 'Full Sun',
+                microSun: currentZone.sunExposure || 'Full Sun',
                 waterNeeds: 'Moderate',
                 imageUrl: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60',
-                plantedDate: '',
-                x: 300,
-                y: 250,
+                plantedDate: new Date().toISOString().split('T')[0],
+                x: 250 + (appState.plants.length * 15) % 200,
+                y: 200 + (appState.plants.length * 15) % 200,
                 width: w,
                 height: h,
                 canopyCover: canopyCover,
+                treeHeight: treeHeight,
+                shadowRotation: shadowRotation,
+                shadowAspect: shadowAspect,
                 color: color,
-                hasShadow: true,
+                hasShadow: category === 'tree' || category === 'structure',
                 notes: []
             };
 
             appState.plants.push(newPlant);
-            selectPlant(newId);
+            appState.selectedPlantId = newId;
             saveState();
+            renderMapCanvas();
+            renderInspector();
         }
 
         function renderInspector() {
@@ -2163,6 +2207,7 @@
 
             const plant = appState.plants.find(p => p.id === appState.selectedPlantId);
             if (!plant) {
+                appState.selectedPlantId = null;
                 noSel.classList.remove('hidden');
                 form.classList.add('hidden');
                 return;
@@ -2171,43 +2216,43 @@
             noSel.classList.add('hidden');
             form.classList.remove('hidden');
 
-            // Automatically scroll the details panel to top when an element is selected
-            const inspectorContent = document.getElementById('inspectorContent');
-            if (inspectorContent) {
-                inspectorContent.scrollTop = 0;
-            }
-
             document.getElementById('inspTitleHeader').innerText = plant.name;
             document.getElementById('inspTypeBadge').innerText = plant.category;
+            document.getElementById('inspImagePreview').src = plant.imageUrl || 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=500&auto=format&fit=crop&q=60';
+
             document.getElementById('inspNameInput').value = plant.name;
             document.getElementById('inspCategorySelect').value = plant.category;
-            document.getElementById('inspWidthInput').value = plant.width || plant.size || 100;
-            document.getElementById('inspHeightInput').value = plant.height || plant.size || 100;
-            document.getElementById('inspColorInput').value = plant.color || '#22c55e';
-            document.getElementById('inspMicroSunSelect').value = plant.microSun || plant.sunNeeds || 'Full Sun';
-            document.getElementById('inspWaterSelect').value = plant.waterNeeds || 'Moderate';
 
-            if (plant.imageUrl) {
-                document.getElementById('inspImagePreview').src = plant.imageUrl;
-            }
+            document.getElementById('inspWidthInput').value = plant.width || 100;
+            document.getElementById('inspHeightInput').value = plant.height || 100;
 
-            const treeCanopySection = document.getElementById('treeCanopySection');
+            const treeSection = document.getElementById('treeCanopySection');
             if (plant.category === 'tree') {
-                treeCanopySection.classList.remove('hidden');
+                treeSection.classList.remove('hidden');
                 document.getElementById('inspCanopyInput').value = plant.canopyCover || plant.width || 100;
+                document.getElementById('inspTreeHeightInput').value = plant.treeHeight || 25;
+                document.getElementById('inspTreeHeightVal').innerText = (plant.treeHeight || 25) + ' ft';
+                document.getElementById('inspShadowRotationInput').value = plant.shadowRotation || 0;
+                document.getElementById('inspShadowRotationVal').innerText = (plant.shadowRotation || 0) + '°';
+                document.getElementById('inspShadowAspectInput').value = plant.shadowAspect || 1.5;
+                document.getElementById('inspShadowAspectVal').innerText = (plant.shadowAspect || 1.5) + 'x';
             } else {
-                treeCanopySection.classList.add('hidden');
+                treeSection.classList.add('hidden');
             }
 
-            const castShadowSection = document.getElementById('castShadowSection');
+            const shadowSec = document.getElementById('castShadowSection');
             if (['flower', 'shrub', 'vegetable'].includes(plant.category)) {
-                castShadowSection.classList.remove('hidden');
+                shadowSec.classList.remove('hidden');
                 document.getElementById('inspHasShadowCheckbox').checked = !!plant.hasShadow;
             } else {
-                castShadowSection.classList.add('hidden');
+                shadowSec.classList.add('hidden');
             }
 
-            renderNotesList(plant);
+            document.getElementById('inspMicroSunSelect').value = plant.microSun || plant.sunNeeds || 'Full Sun';
+            document.getElementById('inspWaterSelect').value = plant.waterNeeds || 'Moderate';
+            document.getElementById('inspColorInput').value = plant.color || '#22c55e';
+
+            renderInspectorNotesList(plant);
         }
 
         function updateSelectedPlantFromInput() {
@@ -2217,28 +2262,33 @@
 
             plant.name = document.getElementById('inspNameInput').value;
             plant.category = document.getElementById('inspCategorySelect').value;
+
             plant.width = parseInt(document.getElementById('inspWidthInput').value) || 50;
             plant.height = parseInt(document.getElementById('inspHeightInput').value) || 50;
-            plant.color = document.getElementById('inspColorInput').value;
-            plant.microSun = document.getElementById('inspMicroSunSelect').value;
-            plant.waterNeeds = document.getElementById('inspWaterSelect').value;
 
             if (plant.category === 'tree') {
                 plant.canopyCover = parseInt(document.getElementById('inspCanopyInput').value) || plant.width;
+                plant.treeHeight = parseInt(document.getElementById('inspTreeHeightInput').value) || 25;
+                plant.shadowRotation = parseInt(document.getElementById('inspShadowRotationInput').value) || 0;
+                plant.shadowAspect = parseFloat(document.getElementById('inspShadowAspectInput').value) || 1.5;
             }
 
             if (['flower', 'shrub', 'vegetable'].includes(plant.category)) {
                 plant.hasShadow = document.getElementById('inspHasShadowCheckbox').checked;
             }
 
+            plant.microSun = document.getElementById('inspMicroSunSelect').value;
+            plant.waterNeeds = document.getElementById('inspWaterSelect').value;
+            plant.color = document.getElementById('inspColorInput').value;
+
             document.getElementById('inspTitleHeader').innerText = plant.name;
             document.getElementById('inspTypeBadge').innerText = plant.category;
 
-            renderMapCanvas();
             saveState();
+            renderMapCanvas();
         }
 
-        function renderNotesList(plant) {
+        function renderInspectorNotesList(plant) {
             const container = document.getElementById('inspNotesList');
             container.innerHTML = '';
 
@@ -2247,103 +2297,102 @@
                 return;
             }
 
-            plant.notes.forEach((note, idx) => {
-                const div = document.createElement('div');
-                div.className = 'bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs flex items-start justify-between gap-2';
-                div.innerHTML = `
-                    <div>
-                        <div class="text-[9px] font-bold text-slate-400">${note.date}</div>
-                        <div class="text-slate-700">${note.text}</div>
+            plant.notes.forEach(note => {
+                const item = document.createElement('div');
+                item.className = 'p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1 relative group';
+                item.innerHTML = `
+                    <div class="flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                        <span>${note.date}</span>
+                        <button onclick="deleteNoteFromSelectedPlant('${note.id}')" class="text-slate-400 hover:text-rose-600 transition">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
                     </div>
-                    <button onclick="deleteNoteFromSelectedPlant(${idx})" class="text-slate-400 hover:text-rose-600 transition text-[10px]">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    <p class="text-slate-700 font-medium leading-tight">${note.text}</p>
                 `;
-                container.appendChild(div);
+                container.appendChild(item);
             });
         }
 
         function addNoteToSelectedPlant() {
             if (!appState.selectedPlantId) return;
-            const plant = appState.plants.find(p => p.id === appState.selectedPlantId);
             const input = document.getElementById('inspNewNoteInput');
             const text = input.value.trim();
+            if (!text) return;
 
-            if (!text || !plant) return;
+            const plant = appState.plants.find(p => p.id === appState.selectedPlantId);
+            if (!plant) return;
 
             if (!plant.notes) plant.notes = [];
-            const today = new Date().toISOString().split('T')[0];
-            plant.notes.push({ id: 'n-' + Date.now(), date: today, text: text });
 
+            const newNote = {
+                id: 'n-' + Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                text: text
+            };
+
+            plant.notes.unshift(newNote);
             input.value = '';
-            renderNotesList(plant);
             saveState();
+            renderInspectorNotesList(plant);
         }
 
-        function deleteNoteFromSelectedPlant(idx) {
+        function deleteNoteFromSelectedPlant(noteId) {
             if (!appState.selectedPlantId) return;
             const plant = appState.plants.find(p => p.id === appState.selectedPlantId);
-            if (plant && plant.notes) {
-                plant.notes.splice(idx, 1);
-                renderNotesList(plant);
-                saveState();
-            }
+            if (!plant || !plant.notes) return;
+
+            plant.notes = plant.notes.filter(n => n.id !== noteId);
+            saveState();
+            renderInspectorNotesList(plant);
         }
 
         function deleteSelectedPlant() {
             if (!appState.selectedPlantId) return;
             appState.plants = appState.plants.filter(p => p.id !== appState.selectedPlantId);
             appState.selectedPlantId = null;
+            saveState();
             renderMapCanvas();
             renderInspector();
-            saveState();
         }
 
         function clearCurrentZoneMap() {
-            if (confirm("Are you sure you want to remove all elements from this yard zone layout?")) {
+            if (confirm('Clear all elements from the active zone layout?')) {
                 appState.plants = appState.plants.filter(p => p.zoneId !== appState.activeZoneId);
                 appState.selectedPlantId = null;
+                saveState();
                 renderMapCanvas();
                 renderInspector();
-                saveState();
             }
         }
 
         function renderSunTrackerView() {
+            populateZoneDropdowns();
             const currentZone = getCurrentZone();
-            const hourGrid = document.getElementById('sunHourGrid');
-            hourGrid.innerHTML = '';
+            if (!currentZone) return;
 
+            const grid = document.getElementById('sunHourGrid');
+            grid.innerHTML = '';
+
+            const hoursList = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
             const activeHours = currentZone.sunHours || [];
-            const hours = [
-                { h: 8, label: '8:00 AM' },
-                { h: 9, label: '9:00 AM' },
-                { h: 10, label: '10:00 AM' },
-                { h: 11, label: '11:00 AM' },
-                { h: 12, label: '12:00 PM' },
-                { h: 13, label: '1:00 PM' },
-                { h: 14, label: '2:00 PM' },
-                { h: 15, label: '3:00 PM' },
-                { h: 16, label: '4:00 PM' },
-                { h: 17, label: '5:00 PM' },
-                { h: 18, label: '6:00 PM' },
-                { h: 19, label: '7:00 PM' }
-            ];
 
-            hours.forEach(item => {
-                const isActive = activeHours.includes(item.h);
+            hoursList.forEach(h => {
+                const isActive = activeHours.includes(h);
+                const period = h >= 12 ? 'PM' : 'AM';
+                const displayH = h > 12 ? h - 12 : h;
+
                 const btn = document.createElement('button');
-                btn.onclick = () => toggleSunHour(currentZone.id, item.h);
-                btn.className = `p-3 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center space-y-1 ${
+                btn.onclick = () => toggleZoneSunHour(currentZone.id, h);
+                btn.className = `p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center space-y-1 ${
                     isActive 
-                    ? 'bg-amber-500 text-white border-amber-600 shadow-md scale-[1.02]' 
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-md scale-105' 
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`;
                 btn.innerHTML = `
-                    <i class="fa-solid fa-sun ${isActive ? 'text-white' : 'text-slate-400'}"></i>
-                    <span>${item.label}</span>
+                    <span>${displayH}:00 ${period}</span>
+                    <i class="fa-solid fa-sun ${isActive ? 'text-amber-100' : 'text-slate-300'} text-sm"></i>
                 `;
-                hourGrid.appendChild(btn);
+                grid.appendChild(btn);
             });
 
             const totalHours = activeHours.length;
@@ -2353,33 +2402,30 @@
             let bestCrops = 'Hostas, Ferns, Moss, Leafy Greens';
             if (totalHours >= 6) {
                 rating = 'Full Sun';
-                bestCrops = 'Tomatoes, Peppers, Roses, Fruit Trees, Lavender, Corn';
+                bestCrops = 'Tomatoes, Peppers, Roses, Fruit Trees, Lavender';
             } else if (totalHours >= 3) {
                 rating = 'Partial Shade';
-                bestCrops = 'Lettuce, Spinach, Root Veggies, Hydrangeas, Berries';
+                bestCrops = 'Hydrangeas, Lettuce, Spinach, Root Veggies, Herbs';
             }
 
             document.getElementById('sunRatingText').innerText = rating;
             document.getElementById('sunBestPlantsText').innerText = bestCrops;
+            currentZone.sunExposure = rating;
+
             document.getElementById('zoneNotesTextarea').value = currentZone.note || '';
         }
 
-        function toggleSunHour(zoneId, hour) {
+        function toggleZoneSunHour(zoneId, hour) {
             const zone = appState.zones.find(z => z.id === zoneId);
             if (!zone) return;
-            if (!zone.sunHours) zone.sunHours = [];
 
-            const idx = zone.sunHours.indexOf(hour);
-            if (idx > -1) {
-                zone.sunHours.splice(idx, 1);
+            if (!zone.sunHours) zone.sunHours = [];
+            const index = zone.sunHours.indexOf(hour);
+            if (index > -1) {
+                zone.sunHours.splice(index, 1);
             } else {
                 zone.sunHours.push(hour);
             }
-
-            const total = zone.sunHours.length;
-            if (total >= 6) zone.sunExposure = 'Full Sun';
-            else if (total >= 3) zone.sunExposure = 'Partial Shade';
-            else zone.sunExposure = 'Full Shade';
 
             saveState();
             renderSunTrackerView();
@@ -2387,54 +2433,47 @@
         }
 
         function switchZoneFromSunTab(zoneId) {
-            appState.activeZoneId = zoneId;
-            saveState();
+            selectZone(zoneId);
             renderSunTrackerView();
-            renderZoneTabs();
         }
 
-        function saveZoneMicroclimateNote(text) {
-            const zone = getCurrentZone();
-            if (zone) {
-                zone.note = text;
+        function saveZoneMicroclimateNote(noteText) {
+            const currentZone = getCurrentZone();
+            if (currentZone) {
+                currentZone.note = noteText;
                 saveState();
             }
         }
 
         function applyTableFiltersAndSort() {
-            const query = (document.getElementById('tableGlobalSearch')?.value || '').toLowerCase();
-            const catFilter = document.getElementById('filterColCategory')?.value || 'ALL';
-            const zoneFilter = document.getElementById('filterColZone')?.value || 'ALL';
-            const sunFilter = document.getElementById('filterColMicroSun')?.value || 'ALL';
-            const waterFilter = document.getElementById('filterColWater')?.value || 'ALL';
+            const searchVal = document.getElementById('tableGlobalSearch').value.toLowerCase();
+            const catVal = document.getElementById('filterColCategory').value;
+            const zoneVal = document.getElementById('filterColZone').value;
+            const sunVal = document.getElementById('filterColMicroSun').value;
+            const waterVal = document.getElementById('filterColWater').value;
 
-            let filtered = appState.plants.filter(p => {
-                if (catFilter !== 'ALL' && p.category !== catFilter) return false;
-                if (zoneFilter !== 'ALL' && p.zoneId !== zoneFilter) return false;
-                if (sunFilter !== 'ALL' && (p.microSun || p.sunNeeds) !== sunFilter) return false;
-                if (waterFilter !== 'ALL' && p.waterNeeds !== waterFilter) return false;
+            // Exclude irrigation and structure elements from Plant Database
+            let filtered = appState.plants.filter(p => p.category !== 'irrigation' && p.category !== 'structure');
 
-                if (query) {
-                    const matchName = p.name.toLowerCase().includes(query);
-                    const matchCat = p.category.toLowerCase().includes(query);
-                    return matchName || matchCat;
-                }
-                return true;
-            });
+            if (searchVal) {
+                filtered = filtered.filter(p => p.name.toLowerCase().includes(searchVal));
+            }
+
+            if (catVal !== 'ALL') filtered = filtered.filter(p => p.category === catVal);
+            if (zoneVal !== 'ALL') filtered = filtered.filter(p => p.zoneId === zoneVal);
+            if (sunVal !== 'ALL') filtered = filtered.filter(p => (p.microSun || p.sunNeeds) === sunVal);
+            if (waterVal !== 'ALL') filtered = filtered.filter(p => p.waterNeeds === waterVal);
 
             filtered.sort((a, b) => {
                 let valA = a[currentSortColumn] || '';
                 let valB = b[currentSortColumn] || '';
 
                 if (currentSortColumn === 'zone') {
-                    const zA = appState.zones.find(z => z.id === a.zoneId)?.name || '';
-                    const zB = appState.zones.find(z => z.id === b.zoneId)?.name || '';
-                    valA = zA;
-                    valB = zB;
+                    const zA = appState.zones.find(z => z.id === a.zoneId);
+                    const zB = appState.zones.find(z => z.id === b.zoneId);
+                    valA = zA ? zA.name : '';
+                    valB = zB ? zB.name : '';
                 }
-
-                if (typeof valA === 'string') valA = valA.toLowerCase();
-                if (typeof valB === 'string') valB = valB.toLowerCase();
 
                 if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
                 if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
@@ -2442,65 +2481,6 @@
             });
 
             renderAirtableRows(filtered);
-        }
-
-        function renderAirtableRows(plantsList) {
-            const tbody = document.getElementById('airtableTbody');
-            tbody.innerHTML = '';
-
-            document.getElementById('airtableRecordCount').innerText = `${plantsList.length} plants displayed`;
-
-            if (plantsList.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="p-8 text-center text-slate-400 italic">
-                            No plants match your active search and filters.
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            plantsList.forEach(plant => {
-                const zone = appState.zones.find(z => z.id === plant.zoneId);
-                const zoneName = zone ? zone.name : 'Unassigned';
-                const wikiUrl = `https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(plant.name)}`;
-
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-slate-50/80 transition border-b border-slate-100';
-
-                tr.innerHTML = `
-                    <td class="p-3 border-r border-slate-200 font-bold text-slate-800 flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full" style="background-color: ${plant.color || '#22c55e'}"></div>
-                        ${plant.name}
-                    </td>
-                    <td class="p-3 border-r border-slate-200">
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 uppercase">
-                            ${plant.category}
-                        </span>
-                    </td>
-                    <td class="p-3 border-r border-slate-200 font-medium text-slate-700">
-                        <i class="fa-solid fa-map-pin text-rose-400 mr-1"></i> ${zoneName}
-                    </td>
-                    <td class="p-3 border-r border-slate-200 font-semibold text-amber-700">
-                        ${plant.microSun || plant.sunNeeds || 'Full Sun'}
-                    </td>
-                    <td class="p-3 border-r border-slate-200 font-semibold text-cyan-700">
-                        💧 ${plant.waterNeeds || 'Moderate'}
-                    </td>
-                    <td class="p-3 border-r border-slate-200 text-center">
-                        <a href="${wikiUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 text-xs font-semibold inline-flex items-center gap-1">
-                            <i class="fa-brands fa-wikipedia-w"></i> Wiki
-                        </a>
-                    </td>
-                    <td class="p-3 text-center">
-                        <button onclick="jumpToPlantInMap('${plant.id}', '${plant.zoneId}')" class="px-2.5 py-1 text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg font-bold transition">
-                            View on Map
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
         }
 
         function sortTableBy(colName) {
@@ -2511,10 +2491,10 @@
                 currentSortDirection = 'asc';
             }
 
-            ['name', 'category', 'zone', 'microSun', 'waterNeeds'].forEach(col => {
-                const icon = document.getElementById(`sort-icon-${col}`);
+            ['name', 'category', 'zone', 'microSun', 'waterNeeds'].forEach(c => {
+                const icon = document.getElementById(`sort-icon-${c}`);
                 if (icon) {
-                    if (col === currentSortColumn) {
+                    if (c === currentSortColumn) {
                         icon.className = `fa-solid fa-sort-${currentSortDirection === 'asc' ? 'up' : 'down'} text-emerald-600`;
                     } else {
                         icon.className = 'fa-solid fa-sort text-slate-400';
@@ -2531,52 +2511,100 @@
             document.getElementById('filterColZone').value = 'ALL';
             document.getElementById('filterColMicroSun').value = 'ALL';
             document.getElementById('filterColWater').value = 'ALL';
-
-            currentSortColumn = 'name';
-            currentSortDirection = 'asc';
             applyTableFiltersAndSort();
         }
 
-        function jumpToPlantInMap(plantId, zoneId) {
-            selectZone(zoneId);
-            switchView('map');
-            selectPlant(plantId);
+        function renderAirtableRows(plantsList) {
+            const tbody = document.getElementById('airtableTbody');
+            tbody.innerHTML = '';
+
+            document.getElementById('airtableRecordCount').innerText = `${plantsList.length} plants mapped`;
+
+            if (plantsList.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="p-8 text-center text-slate-400 italic">
+                            No matching plants found in the database.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            plantsList.forEach(plant => {
+                const zone = appState.zones.find(z => z.id === plant.zoneId);
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition border-b border-slate-100';
+
+                tr.innerHTML = `
+                    <td class="p-3 border-r border-slate-100 font-semibold text-slate-900 flex items-center space-x-2.5">
+                        <img src="${plant.imageUrl}" alt="" class="w-7 h-7 rounded-lg object-cover border border-slate-200">
+                        <span>${plant.name}</span>
+                    </td>
+                    <td class="p-3 border-r border-slate-100">
+                        <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                            ${plant.category}
+                        </span>
+                    </td>
+                    <td class="p-3 border-r border-slate-100 font-medium text-slate-700">
+                        <i class="fa-solid fa-map-pin text-rose-500 mr-1"></i> ${zone ? zone.name : 'Unassigned'}
+                    </td>
+                    <td class="p-3 border-r border-slate-100 font-medium text-amber-700">
+                        ${plant.microSun || plant.sunNeeds || 'Full Sun'}
+                    </td>
+                    <td class="p-3 border-r border-slate-100 font-medium text-cyan-700">
+                        ${plant.waterNeeds || 'Moderate'}
+                    </td>
+                    <td class="p-3 border-r border-slate-100 text-center text-slate-500">
+                        ${plant.notes ? plant.notes.length : 0} notes
+                    </td>
+                    <td class="p-3 text-center">
+                        <button onclick="locateAndEditPlant('${plant.id}')" class="px-2.5 py-1 text-[11px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition border border-emerald-200">
+                            View on Map
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function locateAndEditPlant(plantId) {
+            const plant = appState.plants.find(p => p.id === plantId);
+            if (plant) {
+                appState.activeZoneId = plant.zoneId;
+                appState.selectedPlantId = plant.id;
+                switchView('map');
+            }
         }
 
         function exportData() {
-            const jsonStr = JSON.stringify(appState, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `manscape_garden_backup_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `gardenscape_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(dlAnchorElem);
+            dlAnchorElem.click();
+            dlAnchorElem.remove();
         }
 
-        function importData(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(evt) {
+        function importData(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
                 try {
-                    const imported = JSON.parse(evt.target.result);
+                    const imported = JSON.parse(e.target.result);
                     if (imported && imported.zones && imported.plants) {
                         appState = imported;
                         saveState();
                         renderZoneTabs();
                         renderMapCanvas();
-                        renderInspector();
-                        alert('Garden data imported successfully!');
-                    } else {
-                        alert('Invalid garden JSON format.');
+                        renderSunTrackerView();
+                        alert('Garden configuration successfully restored!');
                     }
                 } catch(err) {
-                    alert('Error reading JSON file.');
+                    alert('Invalid JSON file format.');
                 }
             };
-            reader.readAsText(file);
+            fileReader.readAsText(event.target.files[0]);
         }
     </script>
 </body>
